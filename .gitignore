@@ -1,6 +1,8 @@
 /vendor
 /php/vendor
 /php/.phpunit.result.cache
+/typescript/node_modules
+/typescript/dist
 /.idea
 /.vscode
 .DS_Store
