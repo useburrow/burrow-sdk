@@ -1,0 +1,42 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-03-09
+
+### Added
+
+- Added robust transport and client error model with explicit exceptions for transport failures, invalid JSON, and unexpected HTTP response statuses.
+- Added configurable retry policy support in HTTP transport for transient failures (network and `5xx` responses).
+- Added typed HTTP response object and accepted runtime status handling for `200` and `207`.
+- Added SQL-backed outbox implementation (`SqlOutboxStore`) with durable lifecycle fields: status, attempt count, last error, created/updated timestamps, next attempt scheduling, and sent timestamp.
+- Added outbox worker processing service with retry/fail state transitions and exponential backoff strategy helpers.
+- Added canonical Burrow contract fixtures for system and ecommerce events:
+  - `spec/contracts/event-system-stack-snapshot.json`
+  - `spec/contracts/event-system-heartbeat-ping.json`
+  - `spec/contracts/event-ecommerce-order-placed.json`
+  - `spec/contracts/event-ecommerce-item-purchased.json`
+- Added documentation for SQL outbox schema and error handling:
+  - `docs/outbox-schema.md`
+  - `docs/error-handling.md`
+
+### Changed
+
+- Expanded README usage coverage for onboarding discover/link/contracts, event publishing, and durable outbox worker run loops.
+- Expanded test coverage for:
+  - endpoint/header behavior in `BurrowClient`
+  - event envelope required/default behavior
+  - outbox status transitions and worker success/retry/fail paths
+  - fixture-backed contract envelope shape and taxonomy validation
+
+### Validation
+
+- PHPUnit test suite passes: `18 tests`, `133 assertions`.
+
+[Unreleased]: https://github.com/useburrow/burrow-sdk/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/useburrow/burrow-sdk/releases/tag/0.2.0
