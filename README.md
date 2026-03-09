@@ -4,7 +4,7 @@ Shared SDKs for Burrow plugin integrations (Craft CMS, WordPress, and future pla
 
 ## Current Scope
 
-- PHP-first implementation for Craft and WordPress plugins
+- PHP and TypeScript SDK implementations for Craft and WordPress plugins
 - Shared onboarding and event contract fixtures
 - Durable outbox + retry primitives
 
@@ -12,6 +12,9 @@ Shared SDKs for Burrow plugin integrations (Craft CMS, WordPress, and future pla
 
 ```text
 php/
+  src/
+  tests/
+typescript/
   src/
   tests/
 spec/
@@ -33,6 +36,15 @@ docs/
 cd php
 composer install
 composer test
+```
+
+## Local Dev (TypeScript package)
+
+```bash
+cd typescript
+npm install
+npm run typecheck
+npm run test
 ```
 
 ## PHP SDK Usage
