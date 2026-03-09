@@ -1,0 +1,20 @@
+{
+  "organizationId": "org_123",
+  "clientId": "cli_123",
+  "projectId": "prj_123",
+  "projectSourceId": "psrc_system_123",
+  "channel": "system",
+  "event": "system.heartbeat.ping",
+  "timestamp": "2026-03-09T10:20:00.000Z",
+  "source": "craft-plugin",
+  "description": "Scheduled heartbeat ping from plugin runtime",
+  "schemaVersion": "1",
+  "properties": {
+    "health": "ok",
+    "latencyMs": 87
+  },
+  "tags": {
+    "environment": "production",
+    "region": "us-east-1"
+  }
+}
