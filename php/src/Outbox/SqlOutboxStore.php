@@ -7,7 +7,6 @@ namespace Burrow\Sdk\Outbox;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
-use PDOException;
 use RuntimeException;
 
 final class SqlOutboxStore implements OutboxStoreInterface

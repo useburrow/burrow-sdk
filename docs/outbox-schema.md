@@ -22,6 +22,12 @@ CREATE INDEX idx_burrow_outbox_status_next_attempt
   ON burrow_outbox (status, next_attempt_at);
 ```
 
+If your plugin runtime treats `event_key` as globally unique per emitted event, you can add:
+
+```sql
+CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
+```
+
 ## Column Notes
 
 - `event_key`: Stable key that should remain unchanged across retries.
@@ -39,3 +45,17 @@ CREATE INDEX idx_burrow_outbox_status_next_attempt
 - rows with `status = retrying` where `next_attempt_at` is null or <= now
 
 Order oldest-first (`created_at ASC`) to keep delivery behavior predictable.
+
+## Engine Notes
+
+- **SQLite**: store timestamps as UTC text (`YYYY-MM-DD HH:MM:SS`) for deterministic comparisons.
+- **MySQL/Postgres**: prefer UTC timestamp columns and keep app/runtime timezone pinned to UTC.
+- **Payload type**: `TEXT` works across engines; use `JSON` column type when your target database supports it and tooling expects native JSON operators.
+
+## Concurrency Notes
+
+`SqlOutboxStore` in this SDK is intentionally simple and framework-agnostic. For multi-worker setups, wrap outbox pulls in DB-specific claiming/locking to avoid duplicate delivery attempts:
+
+- Postgres: `FOR UPDATE SKIP LOCKED` claim pattern
+- MySQL 8+: similar row-claim updates in a transaction
+- SQLite: single-writer process model recommended for worker loop

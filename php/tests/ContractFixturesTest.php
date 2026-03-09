@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Burrow\Sdk\Tests;
 
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ContractFixturesTest extends TestCase
@@ -38,9 +39,7 @@ final class ContractFixturesTest extends TestCase
         $this->assertSame($decoded, $request->toArray());
     }
 
-    /**
-     * @dataProvider canonicalEventFixtureProvider
-     */
+    #[DataProvider('canonicalEventFixtureProvider')]
     public function testCanonicalEventFixturesHaveRequiredEnvelopeShape(string $fixtureName, string $expectedEvent): void
     {
         $fixturePath = dirname(__DIR__, 2) . '/spec/contracts/' . $fixtureName;

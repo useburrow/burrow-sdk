@@ -7,7 +7,6 @@ namespace Burrow\Sdk\Transport;
 use Burrow\Sdk\Transport\Exception\InvalidJsonException;
 use Burrow\Sdk\Transport\Exception\TransportFailureException;
 use JsonException;
-use RuntimeException;
 
 final class CurlHttpTransport implements HttpTransportInterface
 {
