@@ -37,6 +37,22 @@ CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
 - `last_error`: Last failure message for observability and support.
 - `sent_at`: Set when the row is successfully published.
 
+## Idempotency Recommendation
+
+Treat `event_key` as the idempotency key for producer-side dedupe. Build it from stable business identifiers so the same real-world event always maps to the same key.
+
+Examples:
+
+- forms submission: `forms:<formId>:<submissionId>`
+- order placed: `ecommerce:order:<orderId>`
+- item purchased: `ecommerce:item:<orderId>:<lineItemId>`
+
+If you enforce this globally, add the unique index:
+
+```sql
+CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
+```
+
 ## Pull Query Semantics
 
 `pullPending(limit)` should select:

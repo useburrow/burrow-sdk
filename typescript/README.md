@@ -91,6 +91,22 @@ while (true) {
 }
 ```
 
+### Idempotency Recommendation (`eventKey`)
+
+Use a deterministic `eventKey` so retries and duplicate submissions can be safely de-duplicated.
+Good `eventKey` candidates combine stable business identifiers:
+
+- forms: `<channel>:<formId>:<submissionId>`
+- ecommerce order: `<channel>:order:<orderId>`
+- ecommerce line item: `<channel>:item:<orderId>:<lineItemId>`
+
+Example:
+
+```ts
+const eventKey = `forms:${event.tags.formId}:${event.properties.submissionId}`;
+outbox.enqueue(eventKey, event);
+```
+
 ### SQL Outbox Store (Adapter-Based)
 
 `SqlOutboxStore` is framework-agnostic and requires a small adapter for your SQL driver.

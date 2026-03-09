@@ -142,6 +142,17 @@ while (true) {
 }
 ```
 
+### PHP Idempotency Recommendation (`eventKey`)
+
+Use a deterministic `eventKey` so retries and duplicate submissions can be safely de-duplicated.
+It is fine to use different naming conventions per plugin, as long as the same real-world event always produces the same key.
+
+Recommended patterns:
+
+- forms submission: `forms:<formId>:<submissionId>`
+- order placed: `ecommerce:order:<orderId>`
+- item purchased: `ecommerce:item:<orderId>:<lineItemId>`
+
 ## Versioning
 
 SemVer per package. Breaking contract changes require major bump and migration notes.
