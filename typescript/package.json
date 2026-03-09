@@ -1,0 +1,44 @@
+{
+  "name": "@useburrow/sdk-typescript",
+  "version": "0.2.0",
+  "description": "Burrow TypeScript SDK for plugin integrations.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/useburrow/burrow-sdk.git",
+    "directory": "typescript"
+  },
+  "homepage": "https://github.com/useburrow/burrow-sdk",
+  "bugs": {
+    "url": "https://github.com/useburrow/burrow-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "lint": "tsc --noEmit -p tsconfig.typecheck.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}
