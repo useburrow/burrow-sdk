@@ -1,0 +1,21 @@
+{
+  "organizationId": "org_123",
+  "clientId": "cli_123",
+  "projectId": "prj_123",
+  "projectSourceId": "psrc_forms_123",
+  "channel": "forms",
+  "event": "forms.submission.received",
+  "timestamp": "2026-03-06T14:10:00.000Z",
+  "source": "craft-plugin",
+  "description": "Form submission received",
+  "schemaVersion": "1",
+  "properties": {
+    "formName": "Contact Us",
+    "submissionId": "sub_98765"
+  },
+  "tags": {
+    "formId": "contactUs",
+    "serviceInterest": "Web Design",
+    "budget": "10k-25k"
+  }
+}
