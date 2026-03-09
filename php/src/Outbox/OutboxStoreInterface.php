@@ -18,7 +18,7 @@ interface OutboxStoreInterface
 
     public function markSent(string $id): void;
 
-    public function markRetrying(string $id, string $error): void;
+    public function markRetrying(string $id, string $error, int $delaySeconds = 0): void;
 
     public function markFailed(string $id, string $error): void;
 }
