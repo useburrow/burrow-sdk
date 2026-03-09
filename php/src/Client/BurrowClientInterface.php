@@ -7,27 +7,24 @@ namespace Burrow\Sdk\Client;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
+use Burrow\Sdk\Transport\HttpResponse;
 
 interface BurrowClientInterface
 {
     /**
-     * @return array{status:int,body:array<string,mixed>|null,raw:string}
      */
-    public function discover(OnboardingDiscoveryRequest $request): array;
+    public function discover(OnboardingDiscoveryRequest $request): HttpResponse;
 
     /**
-     * @return array{status:int,body:array<string,mixed>|null,raw:string}
      */
-    public function link(OnboardingLinkRequest $request): array;
+    public function link(OnboardingLinkRequest $request): HttpResponse;
 
     /**
-     * @return array{status:int,body:array<string,mixed>|null,raw:string}
      */
-    public function submitFormsContract(FormsContractSubmissionRequest $request): array;
+    public function submitFormsContract(FormsContractSubmissionRequest $request): HttpResponse;
 
     /**
      * @param array<string,mixed> $event
-     * @return array{status:int,body:array<string,mixed>|null,raw:string}
      */
-    public function publishEvent(array $event): array;
+    public function publishEvent(array $event): HttpResponse;
 }

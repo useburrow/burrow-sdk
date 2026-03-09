@@ -9,12 +9,6 @@ interface HttpTransportInterface
     /**
      * @param array<string, string> $headers
      * @param array<string, mixed> $payload
-     *
-     * @return array{
-     *   status: int,
-     *   body: array<string, mixed>|null,
-     *   raw: string
-     * }
      */
-    public function post(string $url, array $headers, array $payload): array;
+    public function post(string $url, array $headers, array $payload): HttpResponse;
 }
