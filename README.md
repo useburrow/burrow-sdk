@@ -45,6 +45,7 @@ cd typescript
 npm install
 npm run typecheck
 npm run test
+npm run build
 ```
 
 ## PHP SDK Usage

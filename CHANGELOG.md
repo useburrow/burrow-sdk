@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added TypeScript `SqlOutboxStore` with adapter-based SQL integration and tests for lifecycle state transitions.
+- Added transport retry policy support in TypeScript `FetchTransport` for transient network and `5xx` failures.
+- Added TypeScript CI coverage in GitHub Actions (`typecheck`, `test`, `build`) and a manual npm release workflow for package publishing.
+
 ## [0.2.0] - 2026-03-09
 
 ### Added

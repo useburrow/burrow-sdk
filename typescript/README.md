@@ -27,7 +27,10 @@ import { BurrowClient, FetchTransport } from '@useburrow/sdk-typescript';
 const client = new BurrowClient({
   baseUrl: 'https://api.useburrow.com',
   apiKey: process.env.BURROW_API_KEY ?? '',
-  transport: new FetchTransport({ timeoutMs: 8_000 }),
+  transport: new FetchTransport({
+    timeoutMs: 8_000,
+    retryPolicy: { maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 2_000 },
+  }),
 });
 ```
 
@@ -87,3 +90,26 @@ while (true) {
   }
 }
 ```
+
+### SQL Outbox Store (Adapter-Based)
+
+`SqlOutboxStore` is framework-agnostic and requires a small adapter for your SQL driver.
+
+```ts
+import type { SqlOutboxAdapter } from '@useburrow/sdk-typescript';
+import { OutboxWorker, SqlOutboxStore } from '@useburrow/sdk-typescript';
+
+const adapter: SqlOutboxAdapter = {
+  async execute(statement, params) {
+    await db.execute(statement, params);
+  },
+  async query(statement, params) {
+    return db.query(statement, params);
+  },
+};
+
+const outbox = new SqlOutboxStore(adapter);
+const worker = new OutboxWorker(outbox, client, { maxAttempts: 5 });
+```
+
+Use the shared schema/migration guidance in `docs/outbox-schema.md`.
