@@ -26,6 +26,17 @@ Accepted runtime statuses:
 Any other status triggers `UnexpectedResponseStatusException`.
 Use `isRetryable()` on this exception to distinguish `5xx` responses from non-retryable `4xx` responses.
 
+## Backfill Retry Behavior
+
+`BurrowClient::backfillEvents()` retries transient chunk failures for:
+
+- transport/network failures
+- `5xx` responses
+- `429` responses (rate limits)
+
+When a `429` includes `Retry-After`, the SDK waits for that delay before the next attempt.
+Backfill returns partial accepted/rejected results to the caller so rejected rows are never hidden.
+
 ## Worker Behavior
 
 `OutboxWorker` maps errors to outbox states:

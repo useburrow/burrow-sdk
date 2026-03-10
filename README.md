@@ -118,6 +118,45 @@ $event = EventEnvelopeBuilder::build([
 $response = $client->publishEvent($event);
 ```
 
+### Backfill Events (Run After Final Contract Setup)
+
+Run plugin backfill after contracts are finalized in onboarding, not on every per-form save.
+
+```php
+use Burrow\Sdk\Client\BackfillOptions;
+use Burrow\Sdk\Contracts\BackfillEventsRequest;
+use Burrow\Sdk\Contracts\BackfillWindow;
+
+$result = $client->backfillEvents(
+    request: new BackfillEventsRequest(
+        events: [$eventA, $eventB],
+        backfill: new BackfillWindow(
+            windowStart: '2026-03-01T00:00:00.000Z',
+            cursor: $lastCursor,
+            source: 'wordpress-plugin'
+        )
+    ),
+    options: new BackfillOptions(
+        batchSize: 100,
+        concurrency: 4,
+        maxAttempts: 3
+    ),
+    progressCallback: static function ($progress): void {
+        // queued | running | completed | failed
+        error_log(sprintf(
+            'Backfill %s: accepted=%d rejected=%d cursor=%s',
+            $progress->status,
+            $progress->acceptedCount,
+            $progress->rejectedCount,
+            $progress->latestCursor ?? 'n/a'
+        ));
+    }
+);
+
+// Partial failures are surfaced to caller:
+// $result->accepted, $result->rejected, $result->requestedCount, $result->latestCursor
+```
+
 ### Durable Outbox + Worker Loop
 
 ```php
