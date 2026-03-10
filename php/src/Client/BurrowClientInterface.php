@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Burrow\Sdk\Client;
 
+use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
@@ -27,4 +28,13 @@ interface BurrowClientInterface
      * @param array<string,mixed> $event
      */
     public function publishEvent(array $event): HttpResponse;
+
+    /**
+     * @param callable(BackfillProgressUpdate):void|null $progressCallback
+     */
+    public function backfillEvents(
+        BackfillEventsRequest $request,
+        ?BackfillOptions $options = null,
+        ?callable $progressCallback = null
+    ): BackfillEventsResult;
 }

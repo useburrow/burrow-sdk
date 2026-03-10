@@ -1,0 +1,196 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Burrow\Sdk\Tests;
+
+use Closure;
+use Burrow\Sdk\Client\BackfillOptions;
+use Burrow\Sdk\Client\BackfillProgressUpdate;
+use Burrow\Sdk\Client\BurrowClient;
+use Burrow\Sdk\Contracts\BackfillEventsRequest;
+use Burrow\Sdk\Contracts\BackfillWindow;
+use Burrow\Sdk\Transport\HttpResponse;
+use Burrow\Sdk\Transport\HttpTransportInterface;
+use PHPUnit\Framework\TestCase;
+
+final class BackfillClientTest extends TestCase
+{
+    public function testRequestSerializationIncludesEventsAndBackfillWindow(): void
+    {
+        $request = new BackfillEventsRequest(
+            events: [
+                ['event' => 'forms.submission.received', 'clientId' => 'cli_123'],
+            ],
+            backfill: new BackfillWindow(
+                windowStart: '2026-03-01T00:00:00.000Z',
+                cursor: 'cursor_123',
+                windowEnd: '2026-03-02T00:00:00.000Z',
+                source: 'wordpress-plugin'
+            )
+        );
+
+        $payload = $request->toArray();
+        $this->assertArrayHasKey('events', $payload);
+        $this->assertArrayHasKey('backfill', $payload);
+        $this->assertSame('cursor_123', $payload['backfill']['cursor']);
+        $this->assertSame('2026-03-01T00:00:00.000Z', $payload['backfill']['windowStart']);
+    }
+
+    public function testChunksBackfillAtOneHundredAndUsesDefaultConcurrencyFour(): void
+    {
+        $progress = [];
+        $transport = new InspectingBackfillTransport();
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $events = [];
+        for ($index = 1; $index <= 205; $index++) {
+            $events[] = [
+                'event' => 'forms.submission.received',
+                'submissionId' => 'sub_' . $index,
+            ];
+        }
+
+        $client->backfillEvents(
+            new BackfillEventsRequest(
+                events: $events,
+                backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+            ),
+            null,
+            static function (BackfillProgressUpdate $update) use (&$progress): void {
+                $progress[] = $update;
+            }
+        );
+
+        $this->assertCount(3, $transport->payloads);
+        $this->assertCount(100, $transport->payloads[0]['events']);
+        $this->assertCount(100, $transport->payloads[1]['events']);
+        $this->assertCount(5, $transport->payloads[2]['events']);
+
+        $running = array_values(array_filter($progress, static fn (BackfillProgressUpdate $update): bool => $update->status === 'running'));
+        $this->assertNotEmpty($running);
+        $this->assertSame(3, $running[0]->runningCount);
+    }
+
+    public function testRetriesOn429WithRetryAfterHeader(): void
+    {
+        $transport = new Retry429BackfillTransport();
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $result = $client->backfillEvents(
+            new BackfillEventsRequest(
+                events: [['event' => 'forms.submission.received', 'submissionId' => 'sub_123']],
+                backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+            ),
+            new BackfillOptions(maxAttempts: 3, baseDelayMilliseconds: 1, maxDelayMilliseconds: 1)
+        );
+
+        $this->assertSame(2, $transport->callCount);
+        $this->assertSame(1, $result->acceptedCount);
+        $this->assertSame(0, $result->rejectedCount);
+    }
+
+    public function testReturnsPartialAcceptedAndRejectedItems(): void
+    {
+        $transport = new InspectingBackfillTransport(
+            static fn (): HttpResponse => new HttpResponse(
+                status: 207,
+                body: [
+                    'accepted' => [['externalEventId' => 'evt_1']],
+                    'rejected' => [['externalEventId' => 'evt_2', 'reason' => 'invalid payload']],
+                    'summary' => [
+                        'requestedCount' => 2,
+                        'acceptedCount' => 1,
+                        'rejectedCount' => 1,
+                    ],
+                    'backfill' => ['cursor' => 'cursor_final'],
+                ],
+                raw: '{"partial":true}'
+            )
+        );
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $result = $client->backfillEvents(new BackfillEventsRequest(
+            events: [
+                ['externalEventId' => 'evt_1'],
+                ['externalEventId' => 'evt_2'],
+            ],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+        ));
+
+        $this->assertSame(2, $result->requestedCount);
+        $this->assertSame(1, $result->acceptedCount);
+        $this->assertSame(1, $result->rejectedCount);
+        $this->assertSame('cursor_final', $result->latestCursor);
+        $this->assertSame('evt_2', $result->rejected[0]['externalEventId']);
+    }
+}
+
+final class InspectingBackfillTransport implements HttpTransportInterface
+{
+    /** @var list<array<string,mixed>> */
+    public array $payloads = [];
+
+    /**
+     * @param Closure():HttpResponse|null $responseFactory
+     */
+    public function __construct(private readonly ?Closure $responseFactory = null)
+    {
+    }
+
+    public function post(string $url, array $headers, array $payload): HttpResponse
+    {
+        $this->payloads[] = $payload;
+
+        if ($this->responseFactory !== null) {
+            return ($this->responseFactory)();
+        }
+
+        return new HttpResponse(
+            status: 200,
+            body: [
+                'accepted' => $payload['events'] ?? [],
+                'rejected' => [],
+                'summary' => [
+                    'requestedCount' => is_array($payload['events'] ?? null) ? count($payload['events']) : 0,
+                    'acceptedCount' => is_array($payload['events'] ?? null) ? count($payload['events']) : 0,
+                    'rejectedCount' => 0,
+                ],
+                'backfill' => ['cursor' => 'cursor_' . count($this->payloads)],
+            ],
+            raw: '{"ok":true}'
+        );
+    }
+}
+
+final class Retry429BackfillTransport implements HttpTransportInterface
+{
+    public int $callCount = 0;
+
+    public function post(string $url, array $headers, array $payload): HttpResponse
+    {
+        $this->callCount++;
+        if ($this->callCount === 1) {
+            return new HttpResponse(
+                status: 429,
+                body: ['error' => 'rate limited'],
+                raw: '{"error":"rate limited"}',
+                headers: ['retry-after' => '0']
+            );
+        }
+
+        return new HttpResponse(
+            status: 200,
+            body: [
+                'accepted' => [['externalEventId' => 'evt_1']],
+                'rejected' => [],
+                'summary' => [
+                    'requestedCount' => 1,
+                    'acceptedCount' => 1,
+                    'rejectedCount' => 0,
+                ],
+            ],
+            raw: '{"ok":true}'
+        );
+    }
+}

@@ -65,6 +65,8 @@ final class CurlHttpTransport implements HttpTransportInterface
         }
         $headerLines[] = 'Content-Type: application/json';
 
+        /** @var array<string,string> $responseHeaders */
+        $responseHeaders = [];
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => $headerLines,
@@ -72,6 +74,16 @@ final class CurlHttpTransport implements HttpTransportInterface
             CURLOPT_TIMEOUT => $this->timeoutSeconds,
             CURLOPT_CONNECTTIMEOUT => $this->timeoutSeconds,
             CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HEADERFUNCTION => static function ($curlHandle, string $headerLine) use (&$responseHeaders): int {
+                $trimmed = trim($headerLine);
+                if ($trimmed === '' || !str_contains($trimmed, ':')) {
+                    return strlen($headerLine);
+                }
+
+                [$name, $value] = explode(':', $trimmed, 2);
+                $responseHeaders[strtolower(trim($name))] = trim($value);
+                return strlen($headerLine);
+            },
         ]);
 
         $raw = curl_exec($ch);
@@ -85,7 +97,7 @@ final class CurlHttpTransport implements HttpTransportInterface
         curl_close($ch);
 
         if ($raw === '') {
-            return new HttpResponse($status, null, $raw);
+            return new HttpResponse($status, null, $raw, $responseHeaders);
         }
 
         try {
@@ -98,7 +110,7 @@ final class CurlHttpTransport implements HttpTransportInterface
             throw new InvalidJsonException('Response JSON must decode into an object.');
         }
 
-        return new HttpResponse($status, $decoded, $raw);
+        return new HttpResponse($status, $decoded, $raw, $responseHeaders);
     }
 
     private function sleepForRetry(int $attempt): void

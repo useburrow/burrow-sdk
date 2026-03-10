@@ -8,11 +8,13 @@ final readonly class HttpResponse
 {
     /**
      * @param array<string, mixed>|null $body
+     * @param array<string, string> $headers
      */
     public function __construct(
         public int $status,
         public ?array $body,
-        public string $raw
+        public string $raw,
+        public array $headers = []
     ) {
     }
 

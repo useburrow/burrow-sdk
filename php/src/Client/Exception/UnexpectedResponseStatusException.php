@@ -22,6 +22,7 @@ final class UnexpectedResponseStatusException extends RuntimeException
 
     public function isRetryable(): bool
     {
-        return $this->response->status >= 500 && $this->response->status <= 599;
+        return $this->response->status === 429
+            || ($this->response->status >= 500 && $this->response->status <= 599);
     }
 }

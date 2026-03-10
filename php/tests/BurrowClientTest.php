@@ -6,6 +6,8 @@ namespace Burrow\Sdk\Tests;
 
 use Burrow\Sdk\Client\BurrowClient;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
+use Burrow\Sdk\Contracts\BackfillEventsRequest;
+use Burrow\Sdk\Contracts\BackfillWindow;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
@@ -49,6 +51,12 @@ final class BurrowClientTest extends TestCase
 
         $client->publishEvent(['event' => 'forms.submission.received']);
         $this->assertSame('https://api.example.com/api/v1/events', $transport->lastUrl);
+
+        $client->backfillEvents(new BackfillEventsRequest(
+            events: [['event' => 'forms.submission.received']],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+        ));
+        $this->assertSame('https://api.example.com/api/v1/plugin-backfill/events', $transport->lastUrl);
     }
 
     public function testThrowsOnUnexpectedStatusCode(): void
