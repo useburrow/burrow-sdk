@@ -25,14 +25,17 @@ export class InvalidJsonResponseError extends BurrowSdkError {
 
 export class HttpStatusError extends BurrowSdkError {
   readonly retryable: boolean;
+  readonly headers: Record<string, string>;
 
   constructor(
     public readonly endpointPath: string,
     public readonly status: number,
     public readonly body: JsonObject | null,
-    public readonly rawBody: string
+    public readonly rawBody: string,
+    headers: Record<string, string> = {}
   ) {
     super(`Burrow endpoint ${endpointPath} returned status ${status}.`);
-    this.retryable = status >= 500;
+    this.headers = headers;
+    this.retryable = status === 429 || status >= 500;
   }
 }

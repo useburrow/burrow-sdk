@@ -1,4 +1,5 @@
 export * from './client/BurrowClient.js';
+export * from './client/BackfillTypes.js';
 export * from './client/types.js';
 
 export * from './transport/HttpTransport.js';

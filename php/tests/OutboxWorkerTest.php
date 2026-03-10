@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Burrow\Sdk\Tests;
 
 use Burrow\Sdk\Client\BurrowClientInterface;
+use Burrow\Sdk\Client\BackfillEventsResult;
+use Burrow\Sdk\Client\BackfillOptions;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
+use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
@@ -136,6 +139,21 @@ final class SequenceClient implements BurrowClientInterface
     public function publishEvent(array $event): HttpResponse
     {
         return $this->next();
+    }
+
+    public function backfillEvents(
+        BackfillEventsRequest $request,
+        ?BackfillOptions $options = null,
+        ?callable $progressCallback = null
+    ): BackfillEventsResult {
+        return new BackfillEventsResult(
+            accepted: [],
+            rejected: [],
+            requestedCount: 0,
+            acceptedCount: 0,
+            rejectedCount: 0,
+            latestCursor: null
+        );
     }
 
     private function next(): HttpResponse

@@ -73,6 +73,34 @@ const event = EventEnvelopeBuilder.build({
 await client.publishEvent(event);
 ```
 
+### Backfill Events (Run After Final Contract Setup)
+
+Run backfill as the final onboarding wizard step after contracts are configured, not on every per-form save.
+
+```ts
+const result = await client.backfillEvents(
+  {
+    events: historicalEvents,
+    backfill: {
+      windowStart: '2026-03-01T00:00:00.000Z',
+      cursor: lastCursor,
+      source: 'wordpress-plugin',
+    },
+  },
+  {
+    batchSize: 100,
+    concurrency: 4,
+    retry: { maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 2_000 },
+    onProgress: (progress) => {
+      // queued | running | completed | failed
+      console.log(progress.status, progress.acceptedCount, progress.rejectedCount, progress.latestCursor);
+    },
+  }
+);
+
+console.log(result.summary, result.accepted.length, result.rejected.length);
+```
+
 ### In-Memory Outbox + Worker Loop
 
 ```ts

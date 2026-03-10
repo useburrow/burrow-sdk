@@ -60,6 +60,12 @@ describe('BurrowClient', () => {
 
     await client.publishEvent({ event: 'forms.submission.received' });
     expect(transport.lastUrl).toBe('https://api.example.com/api/v1/events');
+
+    await client.backfillEvents({
+      events: [{ event: 'forms.submission.received' }],
+      backfill: { windowStart: '2026-03-01T00:00:00.000Z' },
+    });
+    expect(transport.lastUrl).toBe('https://api.example.com/api/v1/plugin-backfill/events');
   });
 
   it('throws HttpStatusError when publish receives non-accepted status', async () => {

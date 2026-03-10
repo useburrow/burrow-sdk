@@ -11,6 +11,7 @@ export interface HttpResponse<TBody = JsonObject | null> {
   status: number;
   body: TBody;
   raw: string;
+  headers?: Record<string, string>;
 }
 
 export interface BurrowClientOptions {
