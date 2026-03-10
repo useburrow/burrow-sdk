@@ -62,8 +62,9 @@ export class FetchTransport implements HttpTransport {
       });
 
       const raw = await response.text();
+      const responseHeaders = toHeaderRecord(response.headers);
       if (raw === '') {
-        return { status: response.status, body: null, raw };
+        return { status: response.status, body: null, raw, headers: responseHeaders };
       }
 
       try {
@@ -76,6 +77,7 @@ export class FetchTransport implements HttpTransport {
           status: response.status,
           body: parsed,
           raw,
+          headers: responseHeaders,
         };
       } catch (error) {
         if (error instanceof InvalidJsonResponseError) {
@@ -125,4 +127,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function toHeaderRecord(headers: Headers): Record<string, string> {
+  const output: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    output[key.toLowerCase()] = value;
+  });
+  return output;
 }
