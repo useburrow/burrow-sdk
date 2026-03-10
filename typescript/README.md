@@ -73,6 +73,19 @@ const event = EventEnvelopeBuilder.build({
 await client.publishEvent(event);
 ```
 
+The builder normalizes optional canonical fields to `null` and applies defaults:
+
+- `schemaVersion: "1"`
+- `isLifecycle: false`
+- `properties: {}`
+- `tags: {}`
+
+Lifecycle/correlation fields are supported directly in the envelope:
+
+- `integrationId`, `projectSourceId`, `clientSourceId`
+- `icon`, `entityType`, `externalEntityId`, `externalEventId`
+- `state`, `stateChangedAt`
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run backfill as the final onboarding wizard step after contracts are configured, not on every per-form save.

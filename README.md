@@ -118,6 +118,19 @@ $event = EventEnvelopeBuilder::build([
 $response = $client->publishEvent($event);
 ```
 
+The normalized event envelope supports lifecycle metadata fields in addition to core routing/event fields:
+
+- `integrationId`, `projectSourceId`, `clientSourceId`
+- `icon`, `isLifecycle`, `entityType`
+- `externalEntityId`, `externalEventId`, `state`, `stateChangedAt`
+
+Unset optional fields are normalized to `null`, with defaults:
+
+- `schemaVersion: "1"`
+- `isLifecycle: false`
+- `properties: []` (object-map semantics)
+- `tags: []` (object-map semantics)
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run plugin backfill after contracts are finalized in onboarding, not on every per-form save.

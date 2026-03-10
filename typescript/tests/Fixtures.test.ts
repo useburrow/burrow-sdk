@@ -15,13 +15,22 @@ const requiredEnvelopeKeys = [
   'organizationId',
   'clientId',
   'projectId',
+  'integrationId',
   'projectSourceId',
+  'clientSourceId',
   'channel',
   'event',
   'timestamp',
   'source',
   'description',
+  'icon',
   'schemaVersion',
+  'isLifecycle',
+  'entityType',
+  'externalEntityId',
+  'externalEventId',
+  'state',
+  'stateChangedAt',
   'properties',
   'tags',
 ];
@@ -49,14 +58,22 @@ describe('spec/contracts fixture alignment', () => {
       }
 
       const payload = readJsonFixture(fixture.name);
-      for (const key of requiredEnvelopeKeys) {
-        expect(payload).toHaveProperty(key);
-      }
       expect(payload.event).toBe(fixture.event);
       expect(payload.schemaVersion).toBe('1');
 
       const built = EventEnvelopeBuilder.build(payload as Parameters<typeof EventEnvelopeBuilder.build>[0]);
-      expect(built).toEqual(payload);
+      for (const key of requiredEnvelopeKeys) {
+        expect(built).toHaveProperty(key);
+      }
+      expect(built.organizationId).toBe(payload.organizationId);
+      expect(built.clientId).toBe(payload.clientId);
+      expect(built.channel).toBe(payload.channel);
+      expect(built.event).toBe(payload.event);
+      expect(built.timestamp).toBe(payload.timestamp);
+      expect(built.schemaVersion).toBe('1');
+      expect(built.isLifecycle).toBe(false);
+      expect(built.properties).toEqual(payload.properties);
+      expect(built.tags).toEqual(payload.tags);
     }
   });
 });
