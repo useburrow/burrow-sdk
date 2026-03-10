@@ -10,6 +10,7 @@ use Burrow\Sdk\Client\BackfillProgressUpdate;
 use Burrow\Sdk\Client\BurrowClient;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\BackfillWindow;
+use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
 use Burrow\Sdk\Transport\HttpResponse;
 use Burrow\Sdk\Transport\HttpTransportInterface;
 use PHPUnit\Framework\TestCase;
@@ -88,6 +89,29 @@ final class BackfillClientTest extends TestCase
         $this->assertSame(2, $transport->callCount);
         $this->assertSame(1, $result->acceptedCount);
         $this->assertSame(0, $result->rejectedCount);
+    }
+
+    public function testUsesConcurrentTransportWhenAvailable(): void
+    {
+        $transport = new ConcurrentInspectingBackfillTransport();
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $events = [];
+        for ($index = 1; $index <= 105; $index++) {
+            $events[] = ['externalEventId' => 'evt_' . $index];
+        }
+
+        $result = $client->backfillEvents(
+            new BackfillEventsRequest(
+                events: $events,
+                backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+            ),
+            new BackfillOptions(batchSize: 100, concurrency: 4, maxAttempts: 2)
+        );
+
+        $this->assertSame(1, $transport->concurrentCallCount);
+        $this->assertSame(2, $transport->windowSizes[0]);
+        $this->assertSame(105, $result->acceptedCount);
     }
 
     public function testReturnsPartialAcceptedAndRejectedItems(): void
@@ -192,5 +216,45 @@ final class Retry429BackfillTransport implements HttpTransportInterface
             ],
             raw: '{"ok":true}'
         );
+    }
+}
+
+final class ConcurrentInspectingBackfillTransport implements ConcurrentHttpTransportInterface
+{
+    public int $concurrentCallCount = 0;
+
+    /** @var list<int> */
+    public array $windowSizes = [];
+
+    public function post(string $url, array $headers, array $payload): HttpResponse
+    {
+        return new HttpResponse(
+            status: 200,
+            body: [
+                'accepted' => $payload['events'] ?? [],
+                'rejected' => [],
+            ],
+            raw: '{"ok":true}'
+        );
+    }
+
+    public function postConcurrent(array $requests): array
+    {
+        $this->concurrentCallCount++;
+        $this->windowSizes[] = count($requests);
+
+        $responses = [];
+        foreach ($requests as $request) {
+            $responses[] = new HttpResponse(
+                status: 200,
+                body: [
+                    'accepted' => $request['payload']['events'] ?? [],
+                    'rejected' => [],
+                ],
+                raw: '{"ok":true}'
+            );
+        }
+
+        return $responses;
     }
 }

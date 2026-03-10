@@ -10,6 +10,7 @@ use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Transport\ApiKeyAuthHeaderProvider;
+use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
 use Burrow\Sdk\Transport\HttpResponse;
 use Burrow\Sdk\Transport\HttpTransportInterface;
 
@@ -87,29 +88,30 @@ final class BurrowClient implements BurrowClientInterface
                 $latestCursor
             );
 
-            foreach ($chunkWindow as $eventChunk) {
-                try {
-                    $response = $this->submitBackfillChunkWithRetry(
-                        events: $eventChunk,
-                        request: $request,
-                        options: $options
-                    );
-                } catch (\Throwable $exception) {
-                    $failedCount++;
-                    $this->emitProgress(
-                        $progressCallback,
-                        'failed',
-                        $queuedCount - $completedCount - $failedCount,
-                        0,
-                        $completedCount,
-                        $failedCount,
-                        count($accepted),
-                        count($rejected),
-                        $latestCursor
-                    );
-                    throw $exception;
-                }
+            try {
+                $responses = $this->submitBackfillWindowWithRetry(
+                    eventChunks: $chunkWindow,
+                    request: $request,
+                    options: $options,
+                    concurrency: $concurrency
+                );
+            } catch (\Throwable $exception) {
+                $failedCount++;
+                $this->emitProgress(
+                    $progressCallback,
+                    'failed',
+                    $queuedCount - $completedCount - $failedCount,
+                    0,
+                    $completedCount,
+                    $failedCount,
+                    count($accepted),
+                    count($rejected),
+                    $latestCursor
+                );
+                throw $exception;
+            }
 
+            foreach ($responses as $response) {
                 $body = $response->body ?? [];
                 $acceptedChunk = is_array($body['accepted'] ?? null) ? $body['accepted'] : [];
                 $rejectedChunk = is_array($body['rejected'] ?? null) ? $body['rejected'] : [];
@@ -206,6 +208,83 @@ final class BurrowClient implements BurrowClientInterface
         } while ($attempt < $options->maxAttempts);
 
         throw new \RuntimeException('Backfill chunk retries exhausted.');
+    }
+
+    /**
+     * @param list<list<array<string,mixed>>> $eventChunks
+     * @return list<HttpResponse>
+     */
+    private function submitBackfillWindowWithRetry(
+        array $eventChunks,
+        BackfillEventsRequest $request,
+        BackfillOptions $options,
+        int $concurrency
+    ): array {
+        if (
+            $concurrency > 1
+            && count($eventChunks) > 1
+            && $this->transport instanceof ConcurrentHttpTransportInterface
+        ) {
+            return $this->submitBackfillWindowConcurrentlyWithRetry($eventChunks, $request, $options);
+        }
+
+        $responses = [];
+        foreach ($eventChunks as $events) {
+            $responses[] = $this->submitBackfillChunkWithRetry($events, $request, $options);
+        }
+
+        return $responses;
+    }
+
+    /**
+     * @param list<list<array<string,mixed>>> $eventChunks
+     * @return list<HttpResponse>
+     */
+    private function submitBackfillWindowConcurrentlyWithRetry(
+        array $eventChunks,
+        BackfillEventsRequest $request,
+        BackfillOptions $options
+    ): array {
+        $attempt = 0;
+        do {
+            $attempt++;
+            try {
+                $url = rtrim($this->baseUrl, '/') . '/api/v1/plugin-backfill/events';
+                $headers = ApiKeyAuthHeaderProvider::fromApiKey($this->apiKey);
+                $requests = [];
+                foreach ($eventChunks as $events) {
+                    $requests[] = [
+                        'url' => $url,
+                        'headers' => $headers,
+                        'payload' => [
+                            'events' => $events,
+                            'backfill' => $request->backfill->toArray(),
+                        ],
+                    ];
+                }
+
+                $responses = $this->transport->postConcurrent($requests);
+                foreach ($responses as $response) {
+                    if (!in_array($response->status, [200, 207], true)) {
+                        throw new UnexpectedResponseStatusException('/api/v1/plugin-backfill/events', $response);
+                    }
+                }
+
+                return $responses;
+            } catch (UnexpectedResponseStatusException $exception) {
+                if (!$this->isRetryableBackfillStatus($exception) || $attempt >= $options->maxAttempts) {
+                    throw $exception;
+                }
+                $this->sleepForBackfillRetry($attempt, $options, $exception->response);
+            } catch (\RuntimeException $exception) {
+                if ($attempt >= $options->maxAttempts) {
+                    throw $exception;
+                }
+                $this->sleepForBackfillRetry($attempt, $options, null);
+            }
+        } while ($attempt < $options->maxAttempts);
+
+        throw new \RuntimeException('Backfill concurrent window retries exhausted.');
     }
 
     private function isRetryableBackfillStatus(UnexpectedResponseStatusException $exception): bool
