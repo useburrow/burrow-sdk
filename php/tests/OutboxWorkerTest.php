@@ -10,6 +10,7 @@ use Burrow\Sdk\Client\BackfillOptions;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
+use Burrow\Sdk\Contracts\FormsContractsResponse;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Outbox\ExponentialBackoffStrategy;
@@ -131,9 +132,14 @@ final class SequenceClient implements BurrowClientInterface
         return $this->next();
     }
 
-    public function submitFormsContract(FormsContractSubmissionRequest $request): HttpResponse
+    public function submitFormsContract(FormsContractSubmissionRequest $request): FormsContractsResponse
     {
-        return $this->next();
+        return FormsContractsResponse::fromResponseBody($this->next()->body);
+    }
+
+    public function fetchFormsContracts(string $projectId, string $platform): FormsContractsResponse
+    {
+        return FormsContractsResponse::fromResponseBody($this->next()->body);
     }
 
     public function publishEvent(array $event): HttpResponse

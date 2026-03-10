@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added TypeScript `SqlOutboxStore` with adapter-based SQL integration and tests for lifecycle state transitions.
 - Added transport retry policy support in TypeScript `FetchTransport` for transient network and `5xx` failures.
 - Added TypeScript CI coverage in GitHub Actions (`typecheck`, `test`, `build`) and a manual npm release workflow for package publishing.
+- Added PHP forms contract ID roundtrip models and client support:
+  - parsed responses for `POST /api/v1/plugin-onboarding/forms/contracts`
+  - new fetch helper for `POST /api/v1/plugin-onboarding/forms/contracts/fetch`
+  - local cache + reconcile utilities based on `contractsVersion`
+- Added PHP persistence primitives for contract cache portability across platforms:
+  - `FormsContractCacheRepositoryInterface`
+  - `FormsContractCacheSerializer`
+  - `InMemoryFormsContractCacheRepository`
+
+### Changed
+
+- Changed PHP `submitFormsContract(...)` to return typed contract response data (`projectSourceId`, `contractsVersion`, `contractMappings`, `formsContracts`) for plugin persistence/reconciliation.
 
 ## [0.2.0] - 2026-03-09
 

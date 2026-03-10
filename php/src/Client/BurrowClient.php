@@ -8,7 +8,9 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
+use Burrow\Sdk\Contracts\FormsContractsFetchRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
+use Burrow\Sdk\Contracts\FormsContractsResponse;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Transport\ApiKeyAuthHeaderProvider;
@@ -35,9 +37,17 @@ final class BurrowClient implements BurrowClientInterface
         return $this->post('/api/v1/plugin-onboarding/link', $request->toArray());
     }
 
-    public function submitFormsContract(FormsContractSubmissionRequest $request): HttpResponse
+    public function submitFormsContract(FormsContractSubmissionRequest $request): FormsContractsResponse
     {
-        return $this->post('/api/v1/plugin-onboarding/forms/contracts', $request->toArray());
+        $response = $this->post('/api/v1/plugin-onboarding/forms/contracts', $request->toArray());
+        return FormsContractsResponse::fromResponseBody($response->body);
+    }
+
+    public function fetchFormsContracts(string $projectId, string $platform): FormsContractsResponse
+    {
+        $request = new FormsContractsFetchRequest($platform, $projectId);
+        $response = $this->post('/api/v1/plugin-onboarding/forms/contracts/fetch', $request->toArray());
+        return FormsContractsResponse::fromResponseBody($response->body);
     }
 
     public function publishEvent(array $event): HttpResponse

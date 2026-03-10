@@ -49,6 +49,9 @@ final class BurrowClientTest extends TestCase
         $client->submitFormsContract(new FormsContractSubmissionRequest(['formsContracts' => []]));
         $this->assertSame('https://api.example.com/api/v1/plugin-onboarding/forms/contracts', $transport->lastUrl);
 
+        $client->fetchFormsContracts('prj_123', 'craft');
+        $this->assertSame('https://api.example.com/api/v1/plugin-onboarding/forms/contracts/fetch', $transport->lastUrl);
+
         $client->publishEvent(['event' => 'forms.submission.received']);
         $this->assertSame('https://api.example.com/api/v1/events', $transport->lastUrl);
 

@@ -97,8 +97,45 @@ $response = $client->link(new OnboardingLinkRequest(
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 
 $payload = json_decode(file_get_contents(__DIR__ . '/../spec/contracts/forms-contracts.request.json'), true);
-$response = $client->submitFormsContract(new FormsContractSubmissionRequest($payload));
+$contracts = $client->submitFormsContract(new FormsContractSubmissionRequest($payload));
+
+// Persist these for contract ID roundtrips:
+// - $contracts->projectSourceId
+// - $contracts->contractsVersion
+// - $contracts->contractMappings (contractId + form identifiers)
 ```
+
+To rehydrate latest mappings later (for reconnect/reconcile), call fetch:
+
+```php
+$latest = $client->fetchFormsContracts(projectId: 'prj_123', platform: 'craft');
+```
+
+To build a plugin-local lookup map from either response:
+
+```php
+use Burrow\Sdk\Contracts\FormsContractCache;
+use Burrow\Sdk\Contracts\FormsContractCacheReconciler;
+
+$cache = FormsContractCache::fromResponse('prj_123', $contracts);
+$result = FormsContractCacheReconciler::reconcile($cache, $latest, 'prj_123');
+
+if ($result->updated) {
+    // save refreshed cache when contractsVersion changed
+}
+```
+
+The SDK also includes persistence primitives to help plugin agents stay framework-agnostic:
+
+- `FormsContractCacheRepositoryInterface` for storage adapters
+- `FormsContractCacheSerializer` for JSON/object conversion
+- `InMemoryFormsContractCacheRepository` as a reference implementation for tests/dev
+
+Recommended plugin adapter pattern:
+
+- WordPress: implement repository via options table or custom table
+- Craft: implement repository via project config or plugin table
+- Future platforms: implement the same interface without changing SDK client code
 
 ### Publish Event
 
@@ -193,6 +230,8 @@ $result = $client->backfillEvents(
 ```
 
 Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for every backfilled record.
+Migration note for contract roundtrip: persist `projectSourceId`, `contractsVersion`, and form mapping keys
+(`externalFormId|formHandle`) so plugin forms can reconcile to canonical Burrow `contractId` on future runs.
 
 ### Durable Outbox + Worker Loop
 
