@@ -89,6 +89,7 @@ Lifecycle/correlation fields are supported directly in the envelope:
 ### Backfill Events (Run After Final Contract Setup)
 
 Run backfill as the final onboarding wizard step after contracts are configured, not on every per-form save.
+Backfill events must include the original source record timestamp per event.
 
 ```ts
 const result = await client.backfillEvents(
@@ -113,6 +114,13 @@ const result = await client.backfillEvents(
 
 console.log(result.summary, result.accepted.length, result.rejected.length);
 ```
+
+Validation summary fields:
+
+- `result.summary.validationRejectedCount`
+- `result.validationRejections` (index + reason + message)
+
+Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for each backfilled record.
 
 ### In-Memory Outbox + Worker Loop
 

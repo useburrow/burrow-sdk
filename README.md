@@ -134,6 +134,7 @@ Unset optional fields are normalized to `null`, with defaults:
 ### Backfill Events (Run After Final Contract Setup)
 
 Run plugin backfill after contracts are finalized in onboarding, not on every per-form save.
+Backfill events must include the original source record timestamp per event.
 
 ```php
 use Burrow\Sdk\Client\BackfillOptions;
@@ -168,7 +169,10 @@ $result = $client->backfillEvents(
 
 // Partial failures are surfaced to caller:
 // $result->accepted, $result->rejected, $result->requestedCount, $result->latestCursor
+// $result->validationRejectedCount, $result->validationRejections
 ```
+
+Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for every backfilled record.
 
 ### Durable Outbox + Worker Loop
 

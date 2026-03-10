@@ -36,6 +36,7 @@ Use `isRetryable()` on this exception to distinguish `5xx` responses from non-re
 
 When a `429` includes `Retry-After`, the SDK waits for that delay before the next attempt.
 Backfill returns partial accepted/rejected results to the caller so rejected rows are never hidden.
+Records with missing or invalid per-event timestamps are validation-rejected before send and surfaced in result summaries.
 
 ## Worker Behavior
 
