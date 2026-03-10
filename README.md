@@ -131,6 +131,26 @@ Unset optional fields are normalized to `null`, with defaults:
 - `properties: []` (object-map semantics)
 - `tags: []` (object-map semantics)
 
+### Icon Mapping Behavior (Canonical Lucide Names)
+
+`EventEnvelopeBuilder` will auto-resolve `icon` from canonical event/channel mappings when `icon` is not provided.
+If `icon` is provided on input, that override wins.
+
+Suggested default mappings include:
+
+- `forms.submission.received` -> `file-signature`
+- `ecommerce.order.placed` -> `shopping-cart`
+- `ecommerce.item.purchased` -> `package`
+- `system.stack.snapshot` -> `layers`
+- `system.heartbeat.ping` -> `heart-pulse`
+
+Override guidance:
+
+- optional icon per form/contract mapping metadata
+- optional plugin-level event->icon override map
+
+Use Lucide icon key strings from: https://lucide.dev/icons
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run plugin backfill after contracts are finalized in onboarding, not on every per-form save.

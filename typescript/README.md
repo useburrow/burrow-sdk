@@ -86,6 +86,26 @@ Lifecycle/correlation fields are supported directly in the envelope:
 - `icon`, `entityType`, `externalEntityId`, `externalEventId`
 - `state`, `stateChangedAt`
 
+### Icon Mapping Behavior
+
+If `icon` is omitted, the SDK resolves a canonical Lucide icon from event/channel mappings.
+If `icon` is provided, explicit override is preserved.
+
+Example defaults:
+
+- `forms.submission.received` -> `file-signature`
+- `ecommerce.order.placed` -> `shopping-cart`
+- `ecommerce.item.purchased` -> `package`
+- `system.stack.snapshot` -> `layers`
+- `system.heartbeat.ping` -> `heart-pulse`
+
+Recommended override points:
+
+- per-contract/form mapping metadata
+- plugin-level event override map
+
+Choose Lucide icon names from https://lucide.dev/icons and send the icon key string (for example `shopping-cart`, `file-signature`, `layers`).
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run backfill as the final onboarding wizard step after contracts are configured, not on every per-form save.

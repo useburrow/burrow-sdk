@@ -12,6 +12,7 @@ export * from './contracts/OnboardingLinkRequest.js';
 export * from './contracts/FormsContractSubmissionRequest.js';
 
 export * from './events/EventEnvelopeBuilder.js';
+export * from './events/EventIconResolver.js';
 
 export * from './outbox/OutboxStore.js';
 export * from './outbox/InMemoryOutboxStore.js';

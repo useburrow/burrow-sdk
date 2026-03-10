@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from '../client/types.js';
+import { resolveIconForEvent } from './EventIconResolver.js';
 
 export interface EventEnvelope extends JsonObject {
   organizationId: string;
@@ -63,7 +64,10 @@ export class EventEnvelopeBuilder {
       source: input.source !== undefined && input.source !== null ? String(input.source) : null,
       description:
         input.description !== undefined && input.description !== null ? String(input.description) : null,
-      icon: input.icon !== undefined && input.icon !== null ? String(input.icon) : null,
+      icon:
+        input.icon !== undefined && input.icon !== null
+          ? String(input.icon)
+          : resolveIconForEvent(String(input.channel), String(input.event)),
       schemaVersion: input.schemaVersion !== undefined ? String(input.schemaVersion) : '1',
       isLifecycle: input.isLifecycle === true,
       entityType: input.entityType !== undefined && input.entityType !== null ? String(input.entityType) : null,

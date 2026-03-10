@@ -72,6 +72,7 @@ describe('spec/contracts fixture alignment', () => {
       expect(built.timestamp).toBe(payload.timestamp);
       expect(built.schemaVersion).toBe('1');
       expect(built.isLifecycle).toBe(false);
+      expect(typeof built.icon === 'string' || built.icon === null).toBe(true);
       expect(built.properties).toEqual(payload.properties);
       expect(built.tags).toEqual(payload.tags);
     }

@@ -18,7 +18,7 @@ describe('EventEnvelopeBuilder', () => {
     expect(event.projectId).toBeNull();
     expect(event.integrationId).toBeNull();
     expect(event.clientSourceId).toBeNull();
-    expect(event.icon).toBeNull();
+    expect(event.icon).toBe('file-signature');
     expect(event.entityType).toBeNull();
     expect(event.externalEntityId).toBeNull();
     expect(event.externalEventId).toBeNull();
@@ -59,5 +59,18 @@ describe('EventEnvelopeBuilder', () => {
     expect(event.externalEventId).toBe('evt_123');
     expect(event.state).toBe('synced');
     expect(event.stateChangedAt).toBe('2026-03-09T00:00:30.000Z');
+  });
+
+  it('preserves explicit icon override', () => {
+    const event = EventEnvelopeBuilder.build({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'forms',
+      event: 'forms.submission.received',
+      timestamp: '2026-03-09T00:00:00.000Z',
+      icon: 'star',
+    });
+
+    expect(event.icon).toBe('star');
   });
 });

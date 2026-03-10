@@ -26,7 +26,7 @@ final class EventEnvelopeBuilderTest extends TestCase
         $this->assertSame([], $event['tags']);
         $this->assertNull($event['integrationId']);
         $this->assertNull($event['clientSourceId']);
-        $this->assertNull($event['icon']);
+        $this->assertSame('file-signature', $event['icon']);
         $this->assertNull($event['entityType']);
         $this->assertNull($event['externalEntityId']);
         $this->assertNull($event['externalEventId']);
@@ -84,6 +84,20 @@ final class EventEnvelopeBuilderTest extends TestCase
         $this->assertSame('evt_123', $event['externalEventId']);
         $this->assertSame('synced', $event['state']);
         $this->assertSame('2026-03-07T00:00:30.000Z', $event['stateChangedAt']);
+    }
+
+    public function testPreservesExplicitIconOverride(): void
+    {
+        $event = EventEnvelopeBuilder::build([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-07T00:00:00.000Z',
+            'icon' => 'star',
+        ]);
+
+        $this->assertSame('star', $event['icon']);
     }
 
     public function testBuildsExpectedEnvelopeFromFixture(): void

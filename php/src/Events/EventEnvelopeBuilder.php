@@ -33,7 +33,9 @@ final class EventEnvelopeBuilder
             'timestamp' => (string) $event['timestamp'],
             'source' => isset($event['source']) ? (string) $event['source'] : null,
             'description' => isset($event['description']) ? (string) $event['description'] : null,
-            'icon' => isset($event['icon']) ? (string) $event['icon'] : null,
+            'icon' => isset($event['icon'])
+                ? (string) $event['icon']
+                : EventIconResolver::resolveIconForEvent((string) $event['channel'], (string) $event['event']),
             'schemaVersion' => (string) ($event['schemaVersion'] ?? '1'),
             'isLifecycle' => (bool) ($event['isLifecycle'] ?? false),
             'entityType' => isset($event['entityType']) ? (string) $event['entityType'] : null,
