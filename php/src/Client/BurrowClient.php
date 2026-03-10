@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Burrow\Sdk\Client;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
@@ -52,12 +54,23 @@ final class BurrowClient implements BurrowClientInterface
         $batchSize = min(100, max(1, $options->batchSize));
         $concurrency = max(1, $options->concurrency);
 
+        $validated = $this->validateBackfillEvents($request->events);
+        $validEvents = $validated['validEvents'];
+        $validationRejections = $validated['validationRejections'];
+
         /** @var list<array<string,mixed>> $accepted */
         $accepted = [];
         /** @var list<array<string,mixed>> $rejected */
         $rejected = [];
+        foreach ($validationRejections as $validationRejection) {
+            $rejected[] = [
+                'index' => $validationRejection['index'],
+                'reason' => $validationRejection['reason'],
+                'message' => $validationRejection['message'],
+            ];
+        }
 
-        $chunks = array_chunk($request->events, $batchSize);
+        $chunks = array_chunk($validEvents, $batchSize);
         $queuedCount = count($chunks);
         $completedCount = 0;
         $failedCount = 0;
@@ -136,6 +149,7 @@ final class BurrowClient implements BurrowClientInterface
         $requestedCount = count($request->events);
         $acceptedCount = count($accepted);
         $rejectedCount = count($rejected);
+        $validationRejectedCount = count($validationRejections);
 
         $this->emitProgress(
             $progressCallback,
@@ -155,6 +169,8 @@ final class BurrowClient implements BurrowClientInterface
             requestedCount: $requestedCount,
             acceptedCount: $acceptedCount,
             rejectedCount: $rejectedCount,
+            validationRejectedCount: $validationRejectedCount,
+            validationRejections: $validationRejections,
             latestCursor: $latestCursor
         );
     }
@@ -285,6 +301,60 @@ final class BurrowClient implements BurrowClientInterface
         } while ($attempt < $options->maxAttempts);
 
         throw new \RuntimeException('Backfill concurrent window retries exhausted.');
+    }
+
+    /**
+     * @param list<array<string,mixed>> $events
+     * @return array{
+     *   validEvents:list<array<string,mixed>>,
+     *   validationRejections:list<array{index:int,reason:string,message:string}>
+     * }
+     */
+    private function validateBackfillEvents(array $events): array
+    {
+        $validEvents = [];
+        $validationRejections = [];
+
+        foreach ($events as $index => $event) {
+            $timestamp = $event['timestamp'] ?? null;
+            if (!is_string($timestamp) || trim($timestamp) === '') {
+                $validationRejections[] = [
+                    'index' => $index,
+                    'reason' => 'missing_timestamp',
+                    'message' => 'Backfill event is missing required timestamp.',
+                ];
+                continue;
+            }
+
+            $normalizedTimestamp = $this->normalizeTimestamp($timestamp);
+            if ($normalizedTimestamp === null) {
+                $validationRejections[] = [
+                    'index' => $index,
+                    'reason' => 'invalid_timestamp',
+                    'message' => 'Backfill event timestamp is not a valid parseable date string.',
+                ];
+                continue;
+            }
+
+            $event['timestamp'] = $normalizedTimestamp;
+            $validEvents[] = $event;
+        }
+
+        return [
+            'validEvents' => $validEvents,
+            'validationRejections' => $validationRejections,
+        ];
+    }
+
+    private function normalizeTimestamp(string $timestamp): ?string
+    {
+        try {
+            $dateTime = new DateTimeImmutable($timestamp);
+        } catch (\Exception) {
+            return null;
+        }
+
+        return $dateTime->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.v\Z');
     }
 
     private function isRetryableBackfillStatus(UnexpectedResponseStatusException $exception): bool

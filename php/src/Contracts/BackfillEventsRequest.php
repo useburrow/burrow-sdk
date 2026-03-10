@@ -7,7 +7,7 @@ namespace Burrow\Sdk\Contracts;
 final readonly class BackfillEventsRequest
 {
     /**
-     * @param list<array<string,mixed>> $events
+     * @param list<array<string,mixed>> $events Backfill events must include source-record `timestamp` per event.
      */
     public function __construct(
         public array $events,

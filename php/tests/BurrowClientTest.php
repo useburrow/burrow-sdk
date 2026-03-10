@@ -53,7 +53,10 @@ final class BurrowClientTest extends TestCase
         $this->assertSame('https://api.example.com/api/v1/events', $transport->lastUrl);
 
         $client->backfillEvents(new BackfillEventsRequest(
-            events: [['event' => 'forms.submission.received']],
+            events: [[
+                'event' => 'forms.submission.received',
+                'timestamp' => '2026-03-01T12:00:00.000Z',
+            ]],
             backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
         ));
         $this->assertSame('https://api.example.com/api/v1/plugin-backfill/events', $transport->lastUrl);

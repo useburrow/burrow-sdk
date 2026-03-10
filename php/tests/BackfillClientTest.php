@@ -21,7 +21,7 @@ final class BackfillClientTest extends TestCase
     {
         $request = new BackfillEventsRequest(
             events: [
-                ['event' => 'forms.submission.received', 'clientId' => 'cli_123'],
+                ['event' => 'forms.submission.received', 'clientId' => 'cli_123', 'timestamp' => '2026-03-01T12:00:00.000Z'],
             ],
             backfill: new BackfillWindow(
                 windowStart: '2026-03-01T00:00:00.000Z',
@@ -46,10 +46,7 @@ final class BackfillClientTest extends TestCase
 
         $events = [];
         for ($index = 1; $index <= 205; $index++) {
-            $events[] = [
-                'event' => 'forms.submission.received',
-                'submissionId' => 'sub_' . $index,
-            ];
+            $events[] = $this->makeBackfillEvent('sub_' . $index, '2026-03-01T12:00:00.000Z');
         }
 
         $client->backfillEvents(
@@ -80,7 +77,7 @@ final class BackfillClientTest extends TestCase
 
         $result = $client->backfillEvents(
             new BackfillEventsRequest(
-                events: [['event' => 'forms.submission.received', 'submissionId' => 'sub_123']],
+                events: [$this->makeBackfillEvent('sub_123', '2026-03-01T12:00:00.000Z')],
                 backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
             ),
             new BackfillOptions(maxAttempts: 3, baseDelayMilliseconds: 1, maxDelayMilliseconds: 1)
@@ -89,6 +86,7 @@ final class BackfillClientTest extends TestCase
         $this->assertSame(2, $transport->callCount);
         $this->assertSame(1, $result->acceptedCount);
         $this->assertSame(0, $result->rejectedCount);
+        $this->assertSame(0, $result->validationRejectedCount);
     }
 
     public function testUsesConcurrentTransportWhenAvailable(): void
@@ -98,7 +96,7 @@ final class BackfillClientTest extends TestCase
 
         $events = [];
         for ($index = 1; $index <= 105; $index++) {
-            $events[] = ['externalEventId' => 'evt_' . $index];
+            $events[] = $this->makeBackfillEvent('sub_' . $index, '2026-03-01T12:00:00.000Z') + ['externalEventId' => 'evt_' . $index];
         }
 
         $result = $client->backfillEvents(
@@ -136,8 +134,8 @@ final class BackfillClientTest extends TestCase
 
         $result = $client->backfillEvents(new BackfillEventsRequest(
             events: [
-                ['externalEventId' => 'evt_1'],
-                ['externalEventId' => 'evt_2'],
+                $this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z') + ['externalEventId' => 'evt_1'],
+                $this->makeBackfillEvent('sub_2', '2026-03-01T12:00:00.000Z') + ['externalEventId' => 'evt_2'],
             ],
             backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
         ));
@@ -145,8 +143,65 @@ final class BackfillClientTest extends TestCase
         $this->assertSame(2, $result->requestedCount);
         $this->assertSame(1, $result->acceptedCount);
         $this->assertSame(1, $result->rejectedCount);
+        $this->assertSame(0, $result->validationRejectedCount);
         $this->assertSame('cursor_final', $result->latestCursor);
         $this->assertSame('evt_2', $result->rejected[0]['externalEventId']);
+    }
+
+    public function testRejectsMissingTimestampAndContinuesWithValidRecords(): void
+    {
+        $transport = new InspectingBackfillTransport();
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $result = $client->backfillEvents(new BackfillEventsRequest(
+            events: [
+                $this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z'),
+                ['event' => 'forms.submission.received', 'submissionId' => 'sub_missing'],
+            ],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+        ));
+
+        $this->assertCount(1, $transport->payloads);
+        $this->assertCount(1, $transport->payloads[0]['events']);
+        $this->assertSame(1, $result->validationRejectedCount);
+        $this->assertSame('missing_timestamp', $result->validationRejections[0]['reason']);
+        $this->assertSame(1, $result->rejectedCount);
+    }
+
+    public function testRejectsInvalidTimestampAndDoesNotFallbackToNow(): void
+    {
+        $transport = new InspectingBackfillTransport();
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $result = $client->backfillEvents(new BackfillEventsRequest(
+            events: [
+                $this->makeBackfillEvent('sub_valid', '2026-03-01T12:00:00.000Z'),
+                $this->makeBackfillEvent('sub_invalid', 'not-a-date'),
+            ],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z')
+        ));
+
+        $this->assertCount(1, $transport->payloads);
+        $sentEvent = $transport->payloads[0]['events'][0];
+        $this->assertSame('2026-03-01T12:00:00.000Z', $sentEvent['timestamp']);
+        $this->assertSame(1, $result->validationRejectedCount);
+        $this->assertSame('invalid_timestamp', $result->validationRejections[0]['reason']);
+        $this->assertSame(1, $result->rejectedCount);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function makeBackfillEvent(string $submissionId, string $timestamp): array
+    {
+        return [
+            'organizationId' => 'org_123',
+            'clientId' => 'cli_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => $timestamp,
+            'submissionId' => $submissionId,
+        ];
     }
 }
 

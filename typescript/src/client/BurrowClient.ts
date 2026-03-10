@@ -5,6 +5,7 @@ import {
   type BackfillEventsResponse,
   type BackfillRunOptions,
   type BackfillSummary,
+  type BackfillValidationRejection,
 } from './BackfillTypes.js';
 import type { FormsContractSubmissionRequest } from '../contracts/FormsContractSubmissionRequest.js';
 import { toFormsContractSubmissionPayload } from '../contracts/FormsContractSubmissionRequest.js';
@@ -54,7 +55,24 @@ export class BurrowClient {
 
     const accepted: JsonObject[] = [];
     const rejected: JsonObject[] = [];
-    const chunks = chunk(request.events, batchSize);
+    const validationRejections: BackfillValidationRejection[] = [];
+    const validEvents: JsonObject[] = [];
+
+    request.events.forEach((event, index) => {
+      const normalized = normalizeBackfillEventTimestamp(event, index);
+      if ('validationRejection' in normalized) {
+        validationRejections.push(normalized.validationRejection);
+        rejected.push({
+          index: normalized.validationRejection.index,
+          reason: normalized.validationRejection.reason,
+          message: normalized.validationRejection.message,
+        });
+        return;
+      }
+      validEvents.push(normalized.event);
+    });
+
+    const chunks = chunk(validEvents, batchSize);
     let latestCursor = request.backfill.cursor;
     let completedCount = 0;
     let failedCount = 0;
@@ -66,7 +84,7 @@ export class BurrowClient {
       completedCount,
       failedCount,
       acceptedCount: 0,
-      rejectedCount: 0,
+      rejectedCount: rejected.length,
       latestCursor,
     });
 
@@ -118,11 +136,17 @@ export class BurrowClient {
       }
     }
 
-    const summary = extractBackfillSummary(request.events.length, accepted.length, rejected.length);
+    const summary = extractBackfillSummary(
+      request.events.length,
+      accepted.length,
+      rejected.length,
+      validationRejections.length
+    );
     const result: BackfillEventsResponse = {
       accepted,
       rejected,
       summary,
+      validationRejections,
       latestCursor,
     };
 
@@ -229,11 +253,51 @@ function computeBackfillRetryDelayMs(error: unknown, attempt: number, baseDelayM
   return Math.min(delay, maxDelayMs);
 }
 
-function extractBackfillSummary(requestedCount: number, acceptedCount: number, rejectedCount: number): BackfillSummary {
+function extractBackfillSummary(
+  requestedCount: number,
+  acceptedCount: number,
+  rejectedCount: number,
+  validationRejectedCount: number
+): BackfillSummary {
   return {
     requestedCount,
     acceptedCount,
     rejectedCount,
+    validationRejectedCount,
+  };
+}
+
+function normalizeBackfillEventTimestamp(
+  event: JsonObject,
+  index: number
+): { event: JsonObject } | { validationRejection: BackfillValidationRejection } {
+  const timestamp = event.timestamp;
+  if (typeof timestamp !== 'string' || timestamp.trim() === '') {
+    return {
+      validationRejection: {
+        index,
+        reason: 'missing_timestamp',
+        message: 'Backfill event is missing required timestamp.',
+      },
+    };
+  }
+
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      validationRejection: {
+        index,
+        reason: 'invalid_timestamp',
+        message: 'Backfill event timestamp is not a valid parseable date string.',
+      },
+    };
+  }
+
+  return {
+    event: {
+      ...event,
+      timestamp: parsed.toISOString(),
+    },
   };
 }
 

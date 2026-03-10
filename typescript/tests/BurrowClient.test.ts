@@ -62,7 +62,7 @@ describe('BurrowClient', () => {
     expect(transport.lastUrl).toBe('https://api.example.com/api/v1/events');
 
     await client.backfillEvents({
-      events: [{ event: 'forms.submission.received' }],
+      events: [{ event: 'forms.submission.received', timestamp: '2026-03-01T12:00:00.000Z' }],
       backfill: { windowStart: '2026-03-01T00:00:00.000Z' },
     });
     expect(transport.lastUrl).toBe('https://api.example.com/api/v1/plugin-backfill/events');

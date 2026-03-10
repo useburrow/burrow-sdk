@@ -152,6 +152,8 @@ final class SequenceClient implements BurrowClientInterface
             requestedCount: 0,
             acceptedCount: 0,
             rejectedCount: 0,
+            validationRejectedCount: 0,
+            validationRejections: [],
             latestCursor: null
         );
     }
