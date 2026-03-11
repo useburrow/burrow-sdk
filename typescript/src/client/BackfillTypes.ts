@@ -10,6 +10,13 @@ export interface BackfillWindow {
 export interface BackfillEventsRequest {
   /** Backfill events must include source-record `timestamp` per event. */
   events: BackfillEventInput[];
+  channel?: 'forms' | string;
+  routing?: {
+    projectId?: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
+  source?: string;
   backfill: BackfillWindow;
 }
 
@@ -66,12 +73,26 @@ export interface BackfillRunOptions {
 }
 
 export interface BackfillPayload {
+  routing?: {
+    projectId: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
   events: JsonObject[];
   backfill: BackfillWindow;
 }
 
-export function toBackfillPayload(request: { events: JsonObject[]; backfill: BackfillWindow }): BackfillPayload {
+export function toBackfillPayload(request: {
+  events: JsonObject[];
+  backfill: BackfillWindow;
+  routing?: {
+    projectId: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
+}): BackfillPayload {
   return {
+    ...(request.routing ? { routing: request.routing } : {}),
     events: request.events,
     backfill: {
       windowStart: request.backfill.windowStart,

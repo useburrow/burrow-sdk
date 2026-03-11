@@ -32,4 +32,20 @@ final readonly class FormsContractMapping
             saved: (bool) ($row['saved'] ?? false)
         );
     }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'contractId' => $this->contractId,
+            'externalFormId' => $this->externalFormId,
+            'formHandle' => $this->formHandle,
+            'formName' => $this->formName,
+            'enabled' => $this->enabled,
+            'updatedAt' => $this->updatedAt,
+            'saved' => $this->saved,
+        ];
+    }
 }

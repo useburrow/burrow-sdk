@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Burrow\Sdk\Tests;
 
 use Burrow\Sdk\Client\BurrowClient;
-use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
+use Burrow\Sdk\Client\Exception\SdkApiException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\BackfillWindow;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
@@ -71,7 +71,7 @@ final class BurrowClientTest extends TestCase
         $transport = new RecordingTransport(new HttpResponse(400, ['error' => 'bad request'], '{"error":"bad request"}'));
         $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
 
-        $this->expectException(UnexpectedResponseStatusException::class);
+        $this->expectException(SdkApiException::class);
         $client->publishEvent(['event' => 'forms.submission.received']);
     }
 

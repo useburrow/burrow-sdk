@@ -25,20 +25,57 @@ import {
   type LinkedProjectDeepLink,
   type OnboardingLinkResponse,
 } from '../contracts/OnboardingLinkResponse.js';
-import { HttpStatusError } from '../transport/errors.js';
+import { isRetryableSdkError, normalizeApiError, SdkPreflightError } from '../transport/errors.js';
 import type { BurrowClientOptions } from './types.js';
+
+export interface BurrowClientState {
+  ingestionKey: string | null;
+  projectId: string | null;
+  projectSourceIds: {
+    forms: string | null;
+  };
+  contractsVersion: string | null;
+  contractMappings: JsonObject[];
+  clientId: string | null;
+}
+
+export interface BackfillRouting {
+  projectId: string;
+  projectSourceId: string;
+  clientId?: string;
+}
+
+export interface BurrowDebugLogEntry {
+  endpoint: string;
+  status: number;
+  errorCode: string;
+  rejectedReasons: string[];
+  apiKeyPrefix: string;
+}
 
 export class BurrowClient {
   private readonly baseUrl: string;
   private apiKey: string;
   private readonly transport: BurrowClientOptions['transport'];
+  private readonly debugLogger?: BurrowClientOptions['debugLogger'];
   private scopedProjectId: string | null = null;
   private lastLinkResponse: OnboardingLinkResponse | null = null;
+  private state: BurrowClientState;
 
   constructor(options: BurrowClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey.trim();
     this.transport = options.transport;
+    this.debugLogger = options.debugLogger;
+    const initialState = options.state ?? {};
+    this.state = {
+      ingestionKey: initialState.ingestionKey ?? null,
+      projectId: initialState.projectId ?? null,
+      projectSourceIds: { forms: initialState.projectSourceIds?.forms ?? null },
+      contractsVersion: initialState.contractsVersion ?? null,
+      contractMappings: Array.isArray(initialState.contractMappings) ? initialState.contractMappings : [],
+      clientId: initialState.clientId ?? null,
+    };
   }
 
   async discover(request: OnboardingDiscoveryRequest): Promise<HttpResponse> {
@@ -52,13 +89,23 @@ export class BurrowClient {
 
     if (parsed.ingestionKey?.key) {
       this.apiKey = parsed.ingestionKey.key;
+      this.state.ingestionKey = parsed.ingestionKey.key;
     }
 
-    if (isProjectScopedIngestionKey(parsed.ingestionKey)) {
-      this.scopedProjectId = parsed.ingestionKey.projectId;
-    } else {
-      this.scopedProjectId = null;
+    const linkedProjectId =
+      parsed.project?.id ??
+      parsed.ingestionKey?.projectId ??
+      (typeof parsed.routing.projectId === 'string' ? parsed.routing.projectId : null);
+
+    if (linkedProjectId && linkedProjectId.trim() !== '') {
+      this.state.projectId = linkedProjectId.trim();
     }
+
+    this.state.clientId =
+      parsed.project?.clientId ??
+      (typeof parsed.routing.clientId === 'string' ? parsed.routing.clientId : this.state.clientId);
+
+    this.scopedProjectId = isProjectScopedIngestionKey(parsed.ingestionKey) ? parsed.ingestionKey.projectId : null;
 
     return parsed;
   }
@@ -67,7 +114,15 @@ export class BurrowClient {
     const payload = toFormsContractSubmissionPayload(request);
     this.assertScopedProjectAllowedForFormsPayload(payload);
     const response = await this.post('/api/v1/plugin-onboarding/forms/contracts', payload);
-    return parseFormsContractsResponse(response.body);
+    const parsed = parseFormsContractsResponse(response.body);
+    if (parsed.projectSourceId) {
+      this.state.projectSourceIds.forms = parsed.projectSourceId;
+    }
+    if (parsed.contractsVersion) {
+      this.state.contractsVersion = parsed.contractsVersion;
+    }
+    this.state.contractMappings = parsed.contractMappings.map((mapping) => ({ ...mapping }));
+    return parsed;
   }
 
   async fetchFormsContracts(projectId: string, platform: string): Promise<FormsContractsResponse> {
@@ -84,12 +139,55 @@ export class BurrowClient {
     return toLinkedProjectDeepLink(this.lastLinkResponse);
   }
 
+  getState(): BurrowClientState {
+    return {
+      ...this.state,
+      projectSourceIds: { ...this.state.projectSourceIds },
+      contractMappings: [...this.state.contractMappings],
+    };
+  }
+
+  getProjectId(): string | null {
+    return this.state.projectId;
+  }
+
+  getProjectSourceId(channel: 'forms' = 'forms'): string | null {
+    if (channel !== 'forms') {
+      return null;
+    }
+    return this.state.projectSourceIds.forms;
+  }
+
+  getBackfillRouting(channel: 'forms'): BackfillRouting {
+    if (!this.state.projectId) {
+      throw new SdkPreflightError(
+        'MISSING_PROJECT_ID',
+        'Cannot run forms backfill without a projectId.',
+        'Run plugin onboarding link first so project context can be stored.'
+      );
+    }
+    if (!this.state.projectSourceIds.forms) {
+      throw new SdkPreflightError(
+        'MISSING_PROJECT_SOURCE_ID',
+        'Cannot run forms backfill without a projectSourceId.',
+        'Sync forms contracts first so projectSourceId is persisted in SDK state.'
+      );
+    }
+
+    return {
+      projectId: this.state.projectId,
+      projectSourceId: this.state.projectSourceIds.forms,
+      ...(this.state.clientId ? { clientId: this.state.clientId } : {}),
+    };
+  }
+
   async publishEvent(event: JsonObject): Promise<HttpResponse> {
     this.assertScopedProjectAllowedForEvent(event);
     return this.post('/api/v1/events', event, [200, 207]);
   }
 
   async backfillEvents(request: BackfillEventsRequest, options: BackfillRunOptions = {}): Promise<BackfillEventsResponse> {
+    this.assertBackfillPreflight(request);
     const batchSize = Math.min(100, Math.max(1, options.batchSize ?? 100));
     const concurrency = Math.max(1, options.concurrency ?? 4);
     const sleepFn = options.sleepFn ?? sleep;
@@ -105,7 +203,7 @@ export class BurrowClient {
     const validEvents: JsonObject[] = [];
 
     request.events.forEach((event, index) => {
-      const normalized = normalizeBackfillEventTimestamp(event, index);
+      const normalized = normalizeBackfillEvent(request, event, index);
       if ('validationRejection' in normalized) {
         validationRejections.push(normalized.validationRejection);
         rejected.push({
@@ -222,13 +320,33 @@ export class BurrowClient {
 
     if (acceptedStatuses) {
       if (!acceptedStatuses.includes(response.status)) {
-        throw new HttpStatusError(path, response.status, response.body, response.raw, response.headers ?? {});
+        const normalized = normalizeApiError(path, response.status, response.body, response.raw, response.headers ?? {});
+        this.logApiError({
+          endpoint: path,
+          status: response.status,
+          errorCode: normalized.code,
+          rejectedReasons: normalized.rejected
+            .map((row) => (typeof row.reason === 'string' ? row.reason : null))
+            .filter((value): value is string => value !== null),
+          apiKeyPrefix: redactApiKey(this.apiKey),
+        });
+        throw normalized;
       }
       return response;
     }
 
     if (response.status < 200 || response.status >= 300) {
-      throw new HttpStatusError(path, response.status, response.body, response.raw, response.headers ?? {});
+      const normalized = normalizeApiError(path, response.status, response.body, response.raw, response.headers ?? {});
+      this.logApiError({
+        endpoint: path,
+        status: response.status,
+        errorCode: normalized.code,
+        rejectedReasons: normalized.rejected
+          .map((row) => (typeof row.reason === 'string' ? row.reason : null))
+          .filter((value): value is string => value !== null),
+        apiKeyPrefix: redactApiKey(this.apiKey),
+      });
+      throw normalized;
     }
 
     return response;
@@ -252,11 +370,21 @@ export class BurrowClient {
           toBackfillPayload({
             events: eventsChunk,
             backfill: request.backfill,
+            routing:
+              request.channel === 'forms'
+                ? this.getBackfillRouting('forms')
+                : request.routing?.projectId
+                  ? {
+                      projectId: request.routing.projectId,
+                      ...(request.routing.projectSourceId ? { projectSourceId: request.routing.projectSourceId } : {}),
+                      ...(request.routing.clientId ? { clientId: request.routing.clientId } : {}),
+                    }
+                  : undefined,
           }) as unknown as JsonObject,
           [200, 207]
         );
       } catch (error) {
-        const shouldRetry = isRetryableBackfillError(error);
+        const shouldRetry = isRetryableSdkError(error);
         if (!shouldRetry || attempt >= maxAttempts) {
           throw error;
         }
@@ -311,18 +439,35 @@ export class BurrowClient {
       );
     }
   }
-}
 
-function isRetryableBackfillError(error: unknown): boolean {
-  if (error instanceof HttpStatusError) {
-    return error.status === 429 || error.status >= 500;
+  private assertBackfillPreflight(request: BackfillEventsRequest): void {
+    if (request.channel !== 'forms') {
+      return;
+    }
+
+    if (!this.state.ingestionKey) {
+      throw new SdkPreflightError(
+        'MISSING_INGESTION_KEY',
+        'Cannot run forms backfill without an ingestion key.',
+        'Run onboarding link and persist the returned ingestionKey before backfill.'
+      );
+    }
+
+    this.getBackfillRouting('forms');
   }
-  return error instanceof Error;
+
+  private logApiError(entry: BurrowDebugLogEntry): void {
+    if (!this.debugLogger) {
+      return;
+    }
+    this.debugLogger(entry);
+  }
 }
 
 function computeBackfillRetryDelayMs(error: unknown, attempt: number, baseDelayMs: number, maxDelayMs: number): number {
-  if (error instanceof HttpStatusError && error.status === 429) {
-    const retryAfter = error.headers['retry-after'];
+  if (isRetryableSdkError(error) && typeof (error as { status?: number }).status === 'number' && (error as { status: number }).status === 429) {
+    const headers = (error as { headers?: Record<string, string> }).headers ?? {};
+    const retryAfter = headers['retry-after'];
     if (retryAfter) {
       const numeric = Number(retryAfter);
       if (!Number.isNaN(numeric)) {
@@ -354,7 +499,8 @@ function extractBackfillSummary(
   };
 }
 
-function normalizeBackfillEventTimestamp(
+function normalizeBackfillEvent(
+  request: BackfillEventsRequest,
   event: JsonObject,
   index: number
 ): { event: JsonObject } | { validationRejection: BackfillValidationRejection } {
@@ -383,6 +529,17 @@ function normalizeBackfillEventTimestamp(
   return {
     event: {
       ...event,
+      channel: typeof event.channel === 'string' && event.channel.trim() !== '' ? event.channel : request.channel ?? 'forms',
+      ...(typeof event.event === 'string' && event.event.trim() !== ''
+        ? {}
+        : request.channel === 'forms' || request.channel === undefined
+          ? { event: 'forms.submission.received' }
+          : {}),
+      ...(typeof event.source === 'string' && event.source.trim() !== ''
+        ? {}
+        : request.source
+          ? { source: request.source }
+          : {}),
       timestamp: parsed.toISOString(),
     },
   };
@@ -404,4 +561,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function redactApiKey(apiKey: string): string {
+  const trimmed = apiKey.trim();
+  if (trimmed.length <= 8) {
+    return `${trimmed}***`;
+  }
+  return `${trimmed.slice(0, 8)}***`;
 }

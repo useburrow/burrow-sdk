@@ -164,6 +164,15 @@ Migration note for scoped keys: after onboarding link, SDK uses returned project
 - events require `projectId` and it must match scoped project
 - forms contracts/fetch must target scoped project
 
+Additional migration notes (hardening):
+- `client.getProjectId()`, `client.getProjectSourceId('forms')`, and `client.getBackfillRouting('forms')` are now available.
+- `client.getState()` returns persisted onboarding/contracts state to store plugin-side between runs.
+- Forms backfill now fails locally (before HTTP) with typed preflight errors if required routing/auth state is missing:
+  - `MISSING_INGESTION_KEY`
+  - `MISSING_PROJECT_ID`
+  - `MISSING_PROJECT_SOURCE_ID`
+- API errors are normalized (e.g. `INVALID_INGESTION_API_KEY`, `FORMS_BACKFILL_ATTRIBUTION_REQUIRED`) and can be classified via `isRetryableSdkError(error)`.
+
 ### In-Memory Outbox + Worker Loop
 
 ```ts

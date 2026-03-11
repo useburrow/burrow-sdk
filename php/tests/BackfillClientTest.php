@@ -8,6 +8,8 @@ use Closure;
 use Burrow\Sdk\Client\BackfillOptions;
 use Burrow\Sdk\Client\BackfillProgressUpdate;
 use Burrow\Sdk\Client\BurrowClient;
+use Burrow\Sdk\Client\Exception\SdkApiException;
+use Burrow\Sdk\Client\Exception\SdkPreflightException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\BackfillWindow;
 use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
@@ -189,6 +191,169 @@ final class BackfillClientTest extends TestCase
         $this->assertSame(1, $result->rejectedCount);
     }
 
+    public function testFormsBackfillPreflightFailsWhenIngestionKeyMissing(): void
+    {
+        $transport = new InspectingBackfillTransport();
+        $state = \Burrow\Sdk\Client\BurrowClientState::fromArray([
+            'projectId' => 'prj_123',
+            'formsProjectSourceId' => 'src_forms_123',
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap', $transport, $state);
+
+        $this->expectException(SdkPreflightException::class);
+        $this->expectExceptionMessage('Cannot run forms backfill without an ingestion key.');
+
+        $client->backfillEvents(new BackfillEventsRequest(
+            events: [$this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z')],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+            channel: 'forms'
+        ));
+    }
+
+    public function testFormsBackfillPreflightFailsWhenProjectIdMissing(): void
+    {
+        $transport = new InspectingBackfillTransport();
+        $state = \Burrow\Sdk\Client\BurrowClientState::fromArray([
+            'ingestionKey' => 'ing_key',
+            'formsProjectSourceId' => 'src_forms_123',
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap', $transport, $state);
+
+        $this->expectException(SdkPreflightException::class);
+        $this->expectExceptionMessage('Cannot run forms backfill without a projectId.');
+
+        $client->backfillEvents(new BackfillEventsRequest(
+            events: [$this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z')],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+            channel: 'forms'
+        ));
+    }
+
+    public function testFormsBackfillPreflightFailsWhenProjectSourceIdMissing(): void
+    {
+        $transport = new InspectingBackfillTransport();
+        $state = \Burrow\Sdk\Client\BurrowClientState::fromArray([
+            'ingestionKey' => 'ing_key',
+            'projectId' => 'prj_123',
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap', $transport, $state);
+
+        $this->expectException(SdkPreflightException::class);
+        $this->expectExceptionMessage('Cannot run forms backfill without a projectSourceId.');
+
+        $client->backfillEvents(new BackfillEventsRequest(
+            events: [$this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z')],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+            channel: 'forms'
+        ));
+    }
+
+    public function testMaps401InvalidIngestionKeyError(): void
+    {
+        $transport = new InspectingBackfillTransport(
+            static fn (): HttpResponse => new HttpResponse(
+                status: 401,
+                body: ['error' => ['message' => 'Invalid key']],
+                raw: '{"error":{"message":"Invalid key"}}'
+            )
+        );
+        $state = \Burrow\Sdk\Client\BurrowClientState::fromArray([
+            'ingestionKey' => 'ing_key',
+            'projectId' => 'prj_123',
+            'formsProjectSourceId' => 'src_forms_123',
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap', $transport, $state);
+
+        try {
+            $client->backfillEvents(new BackfillEventsRequest(
+                events: [$this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z')],
+                backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+                channel: 'forms'
+            ));
+            self::fail('Expected SdkApiException to be thrown.');
+        } catch (SdkApiException $exception) {
+            $this->assertSame('INVALID_INGESTION_API_KEY', $exception->codeName);
+            $this->assertFalse($exception->retryable);
+        }
+    }
+
+    public function testMaps400FormsBackfillAttributionRequiredError(): void
+    {
+        $transport = new InspectingBackfillTransport(
+            static fn (): HttpResponse => new HttpResponse(
+                status: 400,
+                body: ['error' => ['code' => 'FORMS_BACKFILL_ATTRIBUTION_REQUIRED', 'message' => 'routing missing']],
+                raw: '{"error":{"code":"FORMS_BACKFILL_ATTRIBUTION_REQUIRED","message":"routing missing"}}'
+            )
+        );
+        $state = \Burrow\Sdk\Client\BurrowClientState::fromArray([
+            'ingestionKey' => 'ing_key',
+            'projectId' => 'prj_123',
+            'formsProjectSourceId' => 'src_forms_123',
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap', $transport, $state);
+
+        try {
+            $client->backfillEvents(new BackfillEventsRequest(
+                events: [$this->makeBackfillEvent('sub_1', '2026-03-01T12:00:00.000Z')],
+                backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+                channel: 'forms'
+            ));
+            self::fail('Expected SdkApiException to be thrown.');
+        } catch (SdkApiException $exception) {
+            $this->assertSame('FORMS_BACKFILL_ATTRIBUTION_REQUIRED', $exception->codeName);
+            $this->assertFalse($exception->retryable);
+        }
+    }
+
+    public function testLinkContractsBackfillAutoUsesRoutingState(): void
+    {
+        $transport = new SequencedBackfillTransport([
+            new HttpResponse(200, [
+                'ingestionKey' => ['key' => 'ingestion_prj_key', 'scope' => 'project', 'projectId' => 'prj_123'],
+                'project' => ['id' => 'prj_123', 'clientId' => 'cli_123'],
+            ], '{"ok":true}'),
+            new HttpResponse(200, [
+                'projectSourceId' => 'src_forms_123',
+                'contractsVersion' => 'v1',
+                'contractMappings' => [['contractId' => 'ct_123', 'enabled' => true]],
+            ], '{"ok":true}'),
+            new HttpResponse(200, [
+                'accepted' => [['externalEventId' => 'evt_1']],
+                'rejected' => [],
+            ], '{"ok":true}'),
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+
+        $client->link(new \Burrow\Sdk\Contracts\OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+        $client->submitFormsContract(new \Burrow\Sdk\Contracts\FormsContractSubmissionRequest([
+            'platform' => 'wordpress',
+            'routing' => ['projectId' => 'prj_123'],
+            'formsContracts' => [],
+        ]));
+        $client->backfillEvents(new BackfillEventsRequest(
+            events: [[
+                'timestamp' => '2026-03-01T12:00:00.000Z',
+                'source' => 'gravity-forms',
+            ]],
+            backfill: new BackfillWindow(windowStart: '2026-03-01T00:00:00.000Z'),
+            channel: 'forms'
+        ));
+
+        $payload = $transport->payloads[2];
+        $this->assertSame([
+            'projectId' => 'prj_123',
+            'projectSourceId' => 'src_forms_123',
+            'clientId' => 'cli_123',
+        ], $payload['routing']);
+        $this->assertSame('forms', $payload['events'][0]['channel']);
+        $this->assertSame('forms.submission.received', $payload['events'][0]['event']);
+        $this->assertSame('gravity-forms', $payload['events'][0]['source']);
+    }
+
     /**
      * @return array<string,mixed>
      */
@@ -311,5 +476,33 @@ final class ConcurrentInspectingBackfillTransport implements ConcurrentHttpTrans
         }
 
         return $responses;
+    }
+}
+
+final class SequencedBackfillTransport implements HttpTransportInterface
+{
+    /** @var list<HttpResponse> */
+    private array $responses;
+
+    /** @var list<array<string,mixed>> */
+    public array $payloads = [];
+
+    /**
+     * @param list<HttpResponse> $responses
+     */
+    public function __construct(array $responses)
+    {
+        $this->responses = $responses;
+    }
+
+    public function post(string $url, array $headers, array $payload): HttpResponse
+    {
+        $this->payloads[] = $payload;
+        $response = array_shift($this->responses);
+        if ($response === null) {
+            throw new \RuntimeException('No response left in queue.');
+        }
+
+        return $response;
     }
 }

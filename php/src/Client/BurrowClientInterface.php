@@ -31,6 +31,17 @@ interface BurrowClientInterface
 
     public function getLinkedProjectDeepLink(): ?LinkedProjectDeepLink;
 
+    public function getState(): BurrowClientState;
+
+    public function getProjectId(): ?string;
+
+    public function getProjectSourceId(?string $channel = 'forms'): ?string;
+
+    /**
+     * @return array{projectId:string,projectSourceId:string,clientId?:string}
+     */
+    public function getBackfillRouting(string $channel): array;
+
     /**
      * @param array<string,mixed> $event
      */

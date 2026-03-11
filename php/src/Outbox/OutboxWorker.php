@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Burrow\Sdk\Outbox;
 
 use Burrow\Sdk\Client\BurrowClientInterface;
+use Burrow\Sdk\Client\Exception\SdkApiException;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Transport\Exception\TransportFailureException;
 use Throwable;
@@ -45,6 +46,17 @@ final class OutboxWorker
                 continue;
             } catch (UnexpectedResponseStatusException $exception) {
                 if ($exception->isRetryable() && $this->shouldRetry($record->attemptCount)) {
+                    $delay = $this->backoffStrategy->delaySecondsForAttempt($record->attemptCount + 1);
+                    $this->store->markRetrying($record->id, $exception->getMessage(), $delay);
+                    $retryingCount++;
+                    continue;
+                }
+
+                $this->store->markFailed($record->id, $exception->getMessage());
+                $failedCount++;
+                continue;
+            } catch (SdkApiException $exception) {
+                if ($exception->retryable && $this->shouldRetry($record->attemptCount)) {
                     $delay = $this->backoffStrategy->delaySecondsForAttempt($record->attemptCount + 1);
                     $this->store->markRetrying($record->id, $exception->getMessage(), $delay);
                     $retryingCount++;

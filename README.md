@@ -294,3 +294,21 @@ Recommended patterns:
 ## Versioning
 
 SemVer per package. Breaking contract changes require major bump and migration notes.
+
+## Migration Notes (SDK hardening)
+
+- `BurrowClient` now persists onboarding/contracts runtime state (`ingestionKey`, `projectId`, forms `projectSourceId`, `contractsVersion`, `contractMappings`).
+- New helpers are available in both SDKs:
+  - `getProjectId()`
+  - `getProjectSourceId('forms')`
+  - `getBackfillRouting('forms')`
+- Forms backfill now enforces SDK preflight before network calls:
+  - `MISSING_INGESTION_KEY`
+  - `MISSING_PROJECT_ID`
+  - `MISSING_PROJECT_SOURCE_ID`
+- Backfill payloads are normalized by SDK and include routing automatically for forms:
+  - `routing.projectId`
+  - `routing.projectSourceId`
+  - `channel='forms'`, `event='forms.submission.received'` defaults
+- Non-2xx API responses are normalized into typed SDK errors with retryability metadata.
+- Retry behavior now treats `400/401/403` as non-retryable and `429/5xx/network` as retryable.

@@ -1,4 +1,5 @@
 import type { HttpTransport } from '../transport/HttpTransport.js';
+import type { BurrowClientState, BurrowDebugLogEntry } from './BurrowClient.js';
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
@@ -18,4 +19,6 @@ export interface BurrowClientOptions {
   baseUrl: string;
   apiKey: string;
   transport: HttpTransport;
+  state?: Partial<BurrowClientState>;
+  debugLogger?: (entry: BurrowDebugLogEntry) => void;
 }

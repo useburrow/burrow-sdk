@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BurrowClient } from '../src/client/BurrowClient.js';
 import type { HttpResponse, JsonObject } from '../src/client/types.js';
 import type { HttpTransport } from '../src/transport/HttpTransport.js';
-import { HttpStatusError } from '../src/transport/errors.js';
+import { SdkApiError } from '../src/transport/errors.js';
 
 class RecordingTransport implements HttpTransport {
   public lastUrl = '';
@@ -90,7 +90,7 @@ describe('BurrowClient', () => {
     expect(transport.lastUrl).toBe('https://api.example.com/api/v1/plugin-backfill/events');
   });
 
-  it('throws HttpStatusError when publish receives non-accepted status', async () => {
+  it('throws SdkApiError when publish receives non-accepted status', async () => {
     const transport = new RecordingTransport({
       status: 400,
       body: { error: 'bad request' },
@@ -102,9 +102,7 @@ describe('BurrowClient', () => {
       transport,
     });
 
-    await expect(client.publishEvent({ event: 'forms.submission.received' })).rejects.toBeInstanceOf(
-      HttpStatusError
-    );
+    await expect(client.publishEvent({ event: 'forms.submission.received' })).rejects.toBeInstanceOf(SdkApiError);
   });
 
   it('parses link response deep-link and switches to scoped ingestion key', async () => {

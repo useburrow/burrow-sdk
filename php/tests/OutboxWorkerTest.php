@@ -149,6 +149,26 @@ final class SequenceClient implements BurrowClientInterface
         return null;
     }
 
+    public function getState(): \Burrow\Sdk\Client\BurrowClientState
+    {
+        return new \Burrow\Sdk\Client\BurrowClientState();
+    }
+
+    public function getProjectId(): ?string
+    {
+        return null;
+    }
+
+    public function getProjectSourceId(?string $channel = 'forms'): ?string
+    {
+        return null;
+    }
+
+    public function getBackfillRouting(string $channel): array
+    {
+        return ['projectId' => '', 'projectSourceId' => ''];
+    }
+
     public function publishEvent(array $event): HttpResponse
     {
         return $this->next();
