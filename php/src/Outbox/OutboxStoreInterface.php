@@ -9,7 +9,7 @@ interface OutboxStoreInterface
     /**
      * @param array<string,mixed> $payload
      */
-    public function enqueue(string $eventKey, array $payload): OutboxRecord;
+    public function enqueue(string $eventKey, array $payload): OutboxEnqueueResult;
 
     /**
      * @return list<OutboxRecord>
@@ -21,4 +21,8 @@ interface OutboxStoreInterface
     public function markRetrying(string $id, string $error, int $delaySeconds = 0): void;
 
     public function markFailed(string $id, string $error): void;
+
+    public function isEventSent(string $eventKey): bool;
+
+    public function getStats(): OutboxStats;
 }

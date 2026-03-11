@@ -17,9 +17,15 @@ interface Row {
 
 class FakeSqlAdapter implements SqlOutboxAdapter {
   public readonly rows = new Map<string, Row>();
+  public readonly sentLedger = new Map<string, string>();
 
   async execute(statement: string, params: readonly unknown[] = []): Promise<void> {
     if (statement.startsWith('INSERT INTO')) {
+      if (statement.includes('burrow_outbox_sent')) {
+        const [eventKey, sentAt] = params as [string, string];
+        this.sentLedger.set(eventKey, sentAt);
+        return;
+      }
       const [id, eventKey, status, attemptCount, payload, lastError, createdAt, updatedAt, nextAttemptAt, sentAt] =
         params as [string, string, OutboxStatus, number, string, string | null, string, string, string | null, string | null];
       this.rows.set(id, {
@@ -34,6 +40,12 @@ class FakeSqlAdapter implements SqlOutboxAdapter {
         next_attempt_at: nextAttemptAt,
         sent_at: sentAt,
       });
+      return;
+    }
+
+    if (statement.startsWith('DELETE FROM') && statement.includes('burrow_outbox_sent')) {
+      const [eventKey] = params as [string];
+      this.sentLedger.delete(eventKey);
       return;
     }
 
@@ -65,6 +77,35 @@ class FakeSqlAdapter implements SqlOutboxAdapter {
   }
 
   async query<T>(statement: string, params: readonly unknown[] = []): Promise<T[]> {
+    if (statement.startsWith('SELECT id FROM')) {
+      const [eventKey] = params as [string];
+      const row = [...this.rows.values()].find((candidate) => candidate.event_key === eventKey);
+      return row ? ([{ id: row.id }] as T[]) : [];
+    }
+
+    if (statement.startsWith('SELECT event_key FROM') && statement.includes('WHERE id = ?')) {
+      const [id] = params as [string];
+      const row = this.rows.get(id);
+      return row ? ([{ event_key: row.event_key }] as T[]) : [];
+    }
+
+    if (statement.startsWith('SELECT event_key FROM') && statement.includes('burrow_outbox_sent')) {
+      const [eventKey] = params as [string];
+      return this.sentLedger.has(eventKey) ? ([{ event_key: eventKey }] as T[]) : [];
+    }
+
+    if (statement.startsWith('SELECT status, COUNT(*) AS count')) {
+      const counts = new Map<OutboxStatus, number>();
+      for (const row of this.rows.values()) {
+        counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
+      }
+      return [...counts.entries()].map(([status, count]) => ({ status, count }) as T);
+    }
+
+    if (statement.startsWith('SELECT COUNT(*) AS count FROM burrow_outbox_sent')) {
+      return [{ count: this.sentLedger.size } as T];
+    }
+
     if (!statement.startsWith('SELECT id, event_key')) {
       return [];
     }
@@ -92,7 +133,9 @@ describe('SqlOutboxStore', () => {
     const adapter = new FakeSqlAdapter();
     const store = new SqlOutboxStore(adapter, { now: () => new Date('2026-03-09T00:00:00.000Z') });
 
-    const record = await store.enqueue('forms:contact:sub_123', { event: 'forms.submission.received' });
+    const enqueue = await store.enqueue('forms:contact:sub_123', { event: 'forms.submission.received' });
+    const record = enqueue.record!;
+    expect(enqueue.deduped).toBe(false);
     const rows = await store.pullPending(10);
 
     expect(rows).toHaveLength(1);
@@ -106,7 +149,7 @@ describe('SqlOutboxStore', () => {
     let now = new Date('2026-03-09T00:00:00.000Z');
     const store = new SqlOutboxStore(adapter, { now: () => now });
 
-    const record = await store.enqueue('forms:contact:sub_123', { event: 'forms.submission.received' });
+    const record = (await store.enqueue('forms:contact:sub_123', { event: 'forms.submission.received' })).record!;
 
     now = new Date('2026-03-09T00:00:05.000Z');
     await store.markRetrying(record.id, 'temporary failure', 1000);
@@ -127,5 +170,16 @@ describe('SqlOutboxStore', () => {
     expect(row?.status).toBe('sent');
     expect(row?.attempt_count).toBe(3);
     expect(row?.sent_at).toBe('2026-03-09T00:00:15.000Z');
+    expect(adapter.sentLedger.has('forms:contact:sub_123')).toBe(true);
+  });
+
+  it('dedupes enqueue if sent ledger already has event key', async () => {
+    const adapter = new FakeSqlAdapter();
+    const store = new SqlOutboxStore(adapter, { now: () => new Date('2026-03-09T00:00:00.000Z') });
+    adapter.sentLedger.set('forms:contact:sub_123', '2026-03-09T00:00:00.000Z');
+
+    const enqueue = await store.enqueue('forms:contact:sub_123', { event: 'forms.submission.received' });
+    expect(enqueue.deduped).toBe(true);
+    expect(adapter.rows.size).toBe(0);
   });
 });

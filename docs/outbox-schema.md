@@ -7,7 +7,7 @@ Use this table for durable event delivery from plugin runtimes into Burrow.
 ```sql
 CREATE TABLE burrow_outbox (
   id VARCHAR(64) PRIMARY KEY,
-  event_key VARCHAR(191) NOT NULL,
+  event_key VARCHAR(191) NOT NULL UNIQUE,
   status VARCHAR(32) NOT NULL,
   attempt_count INTEGER NOT NULL DEFAULT 0,
   payload TEXT NOT NULL,
@@ -20,12 +20,11 @@ CREATE TABLE burrow_outbox (
 
 CREATE INDEX idx_burrow_outbox_status_next_attempt
   ON burrow_outbox (status, next_attempt_at);
-```
 
-If your plugin runtime treats `event_key` as globally unique per emitted event, you can add:
-
-```sql
-CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
+CREATE TABLE burrow_outbox_sent (
+  event_key VARCHAR(191) PRIMARY KEY,
+  sent_at TIMESTAMP NOT NULL
+);
 ```
 
 ## Column Notes
@@ -36,10 +35,18 @@ CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
 - `next_attempt_at`: Retry scheduling hint used by `pullPending()`.
 - `last_error`: Last failure message for observability and support.
 - `sent_at`: Set when the row is successfully published.
+- `burrow_outbox_sent`: Durable sent-ledger table keyed by `event_key` for replay/backfill dedupe.
 
 ## Idempotency Recommendation
 
-Treat `event_key` as the idempotency key for producer-side dedupe. Build it from stable business identifiers so the same real-world event always maps to the same key.
+Treat `event_key` as the idempotency key for producer-side dedupe. Build it from stable business identifiers so the same real-world event always maps to the same key. SDK deterministic keys are SHA-256 over canonical parts:
+
+- `channel`
+- `event`
+- `provider/source`
+- `projectId`
+- stable external entity ids (submission/order/line item/plugin ids)
+- `timestamp` or canonical version marker
 
 Examples:
 
@@ -47,11 +54,7 @@ Examples:
 - order placed: `ecommerce:order:<orderId>`
 - item purchased: `ecommerce:item:<orderId>:<lineItemId>`
 
-If you enforce this globally, add the unique index:
-
-```sql
-CREATE UNIQUE INDEX idx_burrow_outbox_event_key ON burrow_outbox (event_key);
-```
+SDK enqueue dedupe checks both `burrow_outbox` and `burrow_outbox_sent` before enqueueing.
 
 ## Pull Query Semantics
 

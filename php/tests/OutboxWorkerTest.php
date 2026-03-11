@@ -29,7 +29,8 @@ final class OutboxWorkerTest extends TestCase
     public function testMarksRecordSentOnSuccessfulPublish(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker($store, new SequenceClient([new HttpResponse(200, ['ok' => true], '{"ok":true}')]));
 
         $result = $worker->runOnce();
@@ -46,7 +47,8 @@ final class OutboxWorkerTest extends TestCase
     public function testRetriesOnTransportFailure(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker(
             $store,
             new SequenceClient([new TransportFailureException('connection timeout')]),
@@ -66,7 +68,8 @@ final class OutboxWorkerTest extends TestCase
     public function testFailsAfterMaxAttemptsForRetryableErrors(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $store->markRetrying($record->id, 'attempt one failed', 0);
         $store->markRetrying($record->id, 'attempt two failed', 0);
 
@@ -87,7 +90,8 @@ final class OutboxWorkerTest extends TestCase
     public function testFailsImmediatelyOnNonRetryableError(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker($store, new SequenceClient([new RuntimeException('validation failed')]));
 
         $result = $worker->runOnce();

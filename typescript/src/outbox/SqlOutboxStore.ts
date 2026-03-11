@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { JsonObject } from '../client/types.js';
 import type { OutboxStore } from './OutboxStore.js';
-import type { OutboxRecord, OutboxStatus } from './types.js';
+import type { OutboxEnqueueResult, OutboxRecord, OutboxStats, OutboxStatus } from './types.js';
 
 export interface SqlOutboxAdapter {
   execute(statement: string, params?: readonly unknown[]): Promise<void>;
@@ -10,6 +10,7 @@ export interface SqlOutboxAdapter {
 
 export interface SqlOutboxStoreOptions {
   tableName?: string;
+  sentLedgerTableName?: string;
   now?: () => Date;
 }
 
@@ -28,6 +29,7 @@ interface SqlOutboxRow {
 
 export class SqlOutboxStore implements OutboxStore {
   private readonly tableName: string;
+  private readonly sentLedgerTableName: string;
   private readonly now: () => Date;
 
   constructor(
@@ -35,10 +37,23 @@ export class SqlOutboxStore implements OutboxStore {
     options: SqlOutboxStoreOptions = {}
   ) {
     this.tableName = options.tableName ?? 'burrow_outbox';
+    this.sentLedgerTableName = options.sentLedgerTableName ?? 'burrow_outbox_sent';
     this.now = options.now ?? (() => new Date());
   }
 
-  async enqueue(eventKey: string, payload: JsonObject): Promise<OutboxRecord> {
+  async enqueue(eventKey: string, payload: JsonObject): Promise<OutboxEnqueueResult> {
+    if (await this.isEventSent(eventKey)) {
+      return { deduped: true, eventKey };
+    }
+
+    const existingRows = await this.adapter.query<{ id: string }>(
+      `SELECT id FROM ${this.tableName} WHERE event_key = ? LIMIT 1`,
+      [eventKey]
+    );
+    if (existingRows.length > 0) {
+      return { deduped: true, eventKey };
+    }
+
     const id = randomUUID();
     const now = this.now().toISOString();
 
@@ -50,16 +65,20 @@ export class SqlOutboxStore implements OutboxStore {
     );
 
     return {
-      id,
+      deduped: false,
       eventKey,
-      status: 'pending',
-      attemptCount: 0,
-      payload,
-      lastError: null,
-      createdAt: new Date(now),
-      updatedAt: new Date(now),
-      nextAttemptAt: null,
-      sentAt: null,
+      record: {
+        id,
+        eventKey,
+        status: 'pending',
+        attemptCount: 0,
+        payload,
+        lastError: null,
+        createdAt: new Date(now),
+        updatedAt: new Date(now),
+        nextAttemptAt: null,
+        sentAt: null,
+      },
     };
   }
 
@@ -91,6 +110,14 @@ export class SqlOutboxStore implements OutboxStore {
         WHERE id = ?`,
       ['sent', now, now, id]
     );
+    const rows = await this.adapter.query<{ event_key: string }>(`SELECT event_key FROM ${this.tableName} WHERE id = ? LIMIT 1`, [id]);
+    if (rows.length > 0) {
+      await this.adapter.execute(`DELETE FROM ${this.sentLedgerTableName} WHERE event_key = ?`, [rows[0]?.event_key]);
+      await this.adapter.execute(
+        `INSERT INTO ${this.sentLedgerTableName} (event_key, sent_at) VALUES (?, ?)`,
+        [rows[0]?.event_key, now]
+      );
+    }
   }
 
   async markRetrying(id: string, error: string, delayMs = 0): Promise<void> {
@@ -122,6 +149,37 @@ export class SqlOutboxStore implements OutboxStore {
         WHERE id = ?`,
       ['failed', error, now, id]
     );
+  }
+
+  async isEventSent(eventKey: string): Promise<boolean> {
+    const rows = await this.adapter.query<{ event_key: string }>(
+      `SELECT event_key FROM ${this.sentLedgerTableName} WHERE event_key = ? LIMIT 1`,
+      [eventKey]
+    );
+    return rows.length > 0;
+  }
+
+  async getStats(): Promise<OutboxStats> {
+    const rows = await this.adapter.query<{ status: OutboxStatus; count: number }>(
+      `SELECT status, COUNT(*) AS count FROM ${this.tableName} GROUP BY status`
+    );
+    const statusCount: Record<OutboxStatus, number> = {
+      pending: 0,
+      retrying: 0,
+      sent: 0,
+      failed: 0,
+    };
+    for (const row of rows) {
+      statusCount[row.status] = Number(row.count);
+    }
+    const ledgerRows = await this.adapter.query<{ count: number }>(`SELECT COUNT(*) AS count FROM ${this.sentLedgerTableName}`);
+    return {
+      pending: statusCount.pending,
+      retrying: statusCount.retrying,
+      sent: statusCount.sent,
+      failed: statusCount.failed,
+      sentLedgerCount: Number(ledgerRows[0]?.count ?? 0),
+    };
   }
 
   private toRecord(row: SqlOutboxRow): OutboxRecord {
