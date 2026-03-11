@@ -9,23 +9,23 @@ use Burrow\Sdk\Events\Exception\EventContractException;
 final class CanonicalEventName
 {
     private const SYSTEM_EVENTS = [
-        'stack.snapshot',
-        'heartbeat.ping',
-        'plugin.updated',
-        'cms.updated',
+        'system.stack.snapshot',
+        'system.heartbeat.ping',
+        'system.plugin.updated',
+        'system.cms.updated',
     ];
 
     private const ECOMMERCE_EVENTS = [
-        'order.placed',
-        'item.purchased',
-        'cart.item.added',
-        'cart.item.removed',
-        'checkout.started',
-        'checkout.abandoned',
-        'cart.recovered',
-        'order.cancelled',
-        'order.fulfilled',
-        'order.refunded',
+        'ecommerce.order.placed',
+        'ecommerce.item.purchased',
+        'ecommerce.cart.added',
+        'ecommerce.cart.removed',
+        'ecommerce.checkout.started',
+        'ecommerce.checkout.abandoned',
+        'ecommerce.cart.recovered',
+        'ecommerce.order.cancelled',
+        'ecommerce.order.fulfilled',
+        'ecommerce.order.refunded',
     ];
 
     private const FORMS_EVENTS = [
@@ -41,32 +41,25 @@ final class CanonicalEventName
             return $rawEvent;
         }
 
-        if ($channelKey === 'forms' && $rawEvent === 'submission.received') {
-            $rawEvent = 'forms.submission.received';
-        }
-
         $prefix = $channelKey . '.';
-        if (
-            ($channelKey === 'system' || $channelKey === 'ecommerce')
-            && str_starts_with($rawEvent, $prefix)
-        ) {
-            if ($strict) {
-                throw new EventContractException(
-                    errorCode: 'EVENT_NAME_PREFIX_NOT_ALLOWED',
-                    message: sprintf(
-                        'Event name "%s" for channel "%s" must be unprefixed.',
-                        $event,
-                        $channel
-                    ),
-                    remediation: sprintf('Use "%s" instead of "%s".', substr($rawEvent, strlen($prefix)), $rawEvent)
-                );
-            }
-            $rawEvent = substr($rawEvent, strlen($prefix));
+        $isPrefixed = str_starts_with($rawEvent, $prefix);
+        if ($strict && !$isPrefixed) {
+            throw new EventContractException(
+                errorCode: 'EVENT_NAME_PREFIX_REQUIRED',
+                message: sprintf(
+                    'Event name "%s" for channel "%s" must be prefixed as channel.entity.action.',
+                    $event,
+                    $channel
+                ),
+                remediation: sprintf('Use "%s%s".', $prefix, $rawEvent)
+            );
         }
 
-        self::assertKnownCanonicalEvent($channelKey, $rawEvent);
+        $canonical = $isPrefixed ? $rawEvent : $prefix . $rawEvent;
 
-        return $rawEvent;
+        self::assertKnownCanonicalEvent($channelKey, $canonical);
+
+        return $canonical;
     }
 
     private static function assertKnownCanonicalEvent(string $channel, string $event): void

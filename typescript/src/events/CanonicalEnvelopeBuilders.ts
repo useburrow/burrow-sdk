@@ -38,7 +38,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'order.placed',
+      event: 'ecommerce.order.placed',
       timestamp: stringOrNow(input.timestamp),
       icon: 'shopping-cart',
       properties,
@@ -72,7 +72,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'item.purchased',
+      event: 'ecommerce.item.purchased',
       timestamp: stringOrNow(input.timestamp),
       icon: 'shopping-cart',
       properties: {
@@ -90,15 +90,15 @@ export class CanonicalEnvelopeBuilders {
   }
 
   static buildEcommerceOrderFulfilledEvent(input: EventInput, routing: ChannelRoutingResolver) {
-    return this.buildOrderLifecycleEvent(input, routing, 'order.fulfilled', 'fulfilled');
+    return this.buildOrderLifecycleEvent(input, routing, 'ecommerce.order.fulfilled', 'fulfilled');
   }
 
   static buildEcommerceOrderRefundedEvent(input: EventInput, routing: ChannelRoutingResolver) {
-    return this.buildOrderLifecycleEvent(input, routing, 'order.refunded', 'refunded');
+    return this.buildOrderLifecycleEvent(input, routing, 'ecommerce.order.refunded', 'refunded');
   }
 
   static buildEcommerceOrderCancelledEvent(input: EventInput, routing: ChannelRoutingResolver) {
-    return this.buildOrderLifecycleEvent(input, routing, 'order.cancelled', 'cancelled');
+    return this.buildOrderLifecycleEvent(input, routing, 'ecommerce.order.cancelled', 'cancelled');
   }
 
   static buildEcommerceCartItemAddedEvent(input: EcommerceCartItemAddedInput, routing: ChannelRoutingResolver) {
@@ -112,7 +112,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'cart.item.added',
+      event: 'ecommerce.cart.added',
       timestamp: stringOrNow(input.timestamp),
       icon: 'package-plus',
       properties: {
@@ -141,7 +141,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'cart.item.removed',
+      event: 'ecommerce.cart.removed',
       timestamp: stringOrNow(input.timestamp),
       icon: 'package-minus',
       properties: {
@@ -167,7 +167,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'checkout.started',
+      event: 'ecommerce.checkout.started',
       timestamp: stringOrNow(input.timestamp),
       icon: 'credit-card',
       properties: {
@@ -190,7 +190,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'checkout.abandoned',
+      event: 'ecommerce.checkout.abandoned',
       timestamp: stringOrNow(input.timestamp),
       icon: 'hourglass',
       isLifecycle: true,
@@ -218,7 +218,7 @@ export class CanonicalEnvelopeBuilders {
       projectId: resolved.projectId,
       projectSourceId: resolved.projectSourceId,
       channel: 'ecommerce',
-      event: 'cart.recovered',
+      event: 'ecommerce.cart.recovered',
       timestamp: stringOrNow(input.timestamp),
       icon: 'rotate-ccw',
       properties: {
@@ -235,7 +235,7 @@ export class CanonicalEnvelopeBuilders {
   private static buildOrderLifecycleEvent(
     input: EventInput,
     routing: ChannelRoutingResolver,
-    event: 'order.fulfilled' | 'order.refunded' | 'order.cancelled',
+    event: 'ecommerce.order.fulfilled' | 'ecommerce.order.refunded' | 'ecommerce.order.cancelled',
     state: 'fulfilled' | 'refunded' | 'cancelled'
   ) {
     assertRequiredStringKeys(input, ['orderId', 'currency']);

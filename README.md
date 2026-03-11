@@ -169,7 +169,7 @@ Prefer SDK canonical builders for system/ecommerce payloads so plugins do not dr
 - `CanonicalEnvelopeBuilders::buildEcommerceItemPurchasedEvent(...)`
 
 Migration note for plugin agents: replace hand-rolled envelope arrays with canonical builders + `publishEvent`/`backfillEvents`.
-For system/ecommerce events, canonical event names are unprefixed (for example `stack.snapshot`, `order.placed`).
+Canonical event names use channel-prefixed three-segment notation (for example `system.stack.snapshot`, `ecommerce.order.placed`).
 
 The normalized event envelope supports lifecycle metadata fields in addition to core routing/event fields:
 

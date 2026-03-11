@@ -103,8 +103,8 @@ If `icon` is provided, explicit override is preserved.
 Example defaults:
 
 - `forms.submission.received` -> `file-signature`
-- `order.placed` -> `shopping-cart` (for `channel: "ecommerce"`)
-- `item.purchased` -> `package` (for `channel: "ecommerce"`)
+- `ecommerce.order.placed` -> `shopping-cart`
+- `ecommerce.item.purchased` -> `package`
 - `system.stack.snapshot` -> `layers`
 - `system.heartbeat.ping` -> `heart-pulse`
 

@@ -22,14 +22,15 @@ final class EventContractHardeningTest extends TestCase
 {
     public function testNormalizesPrefixedNamesOutsideStrictMode(): void
     {
-        $this->assertSame('stack.snapshot', CanonicalEventName::normalize('system', 'system.stack.snapshot'));
-        $this->assertSame('order.placed', CanonicalEventName::normalize('ecommerce', 'ecommerce.order.placed'));
+        $this->assertSame('system.stack.snapshot', CanonicalEventName::normalize('system', 'system.stack.snapshot'));
+        $this->assertSame('ecommerce.order.placed', CanonicalEventName::normalize('ecommerce', 'ecommerce.order.placed'));
+        $this->assertSame('ecommerce.order.placed', CanonicalEventName::normalize('ecommerce', 'order.placed'));
     }
 
     public function testRejectsPrefixedNamesInStrictMode(): void
     {
         $this->expectException(EventContractException::class);
-        CanonicalEventName::normalize('system', 'system.stack.snapshot', true);
+        CanonicalEventName::normalize('system', 'stack.snapshot', true);
     }
 
     public function testResolvesRoutingByChannelAndErrorsWhenMissing(): void
@@ -66,7 +67,7 @@ final class EventContractHardeningTest extends TestCase
             'tags' => ['cmsVersion' => '6.7.1', 'phpVersion' => '8.2.18', 'hasUpdates' => 'true', 'updatesCount' => '1'],
         ], $resolver);
         $this->assertSame('system', $stack['channel']);
-        $this->assertSame('stack.snapshot', $stack['event']);
+        $this->assertSame('system.stack.snapshot', $stack['event']);
         $this->assertSame('layers', $stack['icon']);
         $this->assertSame('src_system_123', $stack['projectSourceId']);
 
@@ -74,7 +75,7 @@ final class EventContractHardeningTest extends TestCase
             'organizationId' => 'org_123',
             'responseMs' => 42,
         ], $resolver);
-        $this->assertSame('heartbeat.ping', $heartbeat['event']);
+        $this->assertSame('system.heartbeat.ping', $heartbeat['event']);
         $this->assertSame('heart', $heartbeat['icon']);
 
         $order = CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent([
@@ -97,7 +98,7 @@ final class EventContractHardeningTest extends TestCase
             'shippingMethod' => 'express',
             'tags' => ['provider' => 'woocommerce', 'status' => 'paid', 'couponCode' => 'SPRING25'],
         ], $resolver);
-        $this->assertSame('order.placed', $order['event']);
+        $this->assertSame('ecommerce.order.placed', $order['event']);
         $this->assertSame('shopping-cart', $order['icon']);
         $this->assertSame('src_ecom_123', $order['projectSourceId']);
         $this->assertTrue($order['isLifecycle']);
@@ -122,7 +123,7 @@ final class EventContractHardeningTest extends TestCase
             'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce', 'productType' => 'simple'],
         ], $resolver);
-        $this->assertSame('item.purchased', $item['event']);
+        $this->assertSame('ecommerce.item.purchased', $item['event']);
         $this->assertSame('shopping-cart', $item['icon']);
         $this->assertSame('cust_tok_1', $item['tags']['customerToken']);
 
@@ -135,7 +136,7 @@ final class EventContractHardeningTest extends TestCase
             'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('order.fulfilled', $fulfilled['event']);
+        $this->assertSame('ecommerce.order.fulfilled', $fulfilled['event']);
         $this->assertTrue($fulfilled['isLifecycle']);
         $this->assertSame('order', $fulfilled['entityType']);
         $this->assertSame('woo:1001', $fulfilled['externalEntityId']);
@@ -151,7 +152,7 @@ final class EventContractHardeningTest extends TestCase
             'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('order.refunded', $refunded['event']);
+        $this->assertSame('ecommerce.order.refunded', $refunded['event']);
         $this->assertSame('refunded', $refunded['state']);
 
         $cancelled = CanonicalEnvelopeBuilders::buildEcommerceOrderCancelledEvent([
@@ -163,7 +164,7 @@ final class EventContractHardeningTest extends TestCase
             'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('order.cancelled', $cancelled['event']);
+        $this->assertSame('ecommerce.order.cancelled', $cancelled['event']);
         $this->assertSame('cancelled', $cancelled['state']);
 
         $withoutCoupon = CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent([
@@ -191,7 +192,7 @@ final class EventContractHardeningTest extends TestCase
             'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce', 'category' => 'apparel'],
         ], $resolver);
-        $this->assertSame('cart.item.added', $cartAdded['event']);
+        $this->assertSame('ecommerce.cart.added', $cartAdded['event']);
         $this->assertSame(19.99, $cartAdded['properties']['unitPrice']);
         $this->assertSame('sku_1', $cartAdded['tags']['productId']);
 
@@ -205,7 +206,7 @@ final class EventContractHardeningTest extends TestCase
             'cartItemCount' => 2,
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('cart.item.removed', $cartRemoved['event']);
+        $this->assertSame('ecommerce.cart.removed', $cartRemoved['event']);
         $this->assertArrayNotHasKey('unitPrice', $cartRemoved['properties']);
         $this->assertArrayNotHasKey('lineTotal', $cartRemoved['properties']);
 
@@ -217,7 +218,7 @@ final class EventContractHardeningTest extends TestCase
             'isGuest' => 'true',
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('checkout.started', $checkoutStarted['event']);
+        $this->assertSame('ecommerce.checkout.started', $checkoutStarted['event']);
         $this->assertSame('true', $checkoutStarted['tags']['isGuest']);
 
         $checkoutAbandoned = CanonicalEnvelopeBuilders::buildEcommerceCheckoutAbandonedEvent([
@@ -229,7 +230,7 @@ final class EventContractHardeningTest extends TestCase
             'minutesSinceCheckout' => 45,
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('checkout.abandoned', $checkoutAbandoned['event']);
+        $this->assertSame('ecommerce.checkout.abandoned', $checkoutAbandoned['event']);
         $this->assertTrue($checkoutAbandoned['isLifecycle']);
         $this->assertSame('checkout', $checkoutAbandoned['entityType']);
         $this->assertSame('abandoned', $checkoutAbandoned['state']);
@@ -244,7 +245,7 @@ final class EventContractHardeningTest extends TestCase
             'minutesSinceAbandonment' => 11,
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
-        $this->assertSame('cart.recovered', $cartRecovered['event']);
+        $this->assertSame('ecommerce.cart.recovered', $cartRecovered['event']);
         $this->assertSame(11, $cartRecovered['properties']['minutesSinceAbandonment']);
     }
 
@@ -294,7 +295,7 @@ final class EventContractHardeningTest extends TestCase
         self::assertArrayHasKey('events', $transport->lastPayload);
         $events = $transport->lastPayload['events'];
         self::assertIsArray($events);
-        self::assertSame('order.placed', $events[0]['event'] ?? null);
+        self::assertSame('ecommerce.order.placed', $events[0]['event'] ?? null);
         self::assertSame('src_ecom_123', $events[0]['projectSourceId'] ?? null);
     }
 }

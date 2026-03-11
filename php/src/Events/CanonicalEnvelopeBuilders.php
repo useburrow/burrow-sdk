@@ -27,7 +27,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'system',
-            'event' => 'stack.snapshot',
+            'event' => 'system.stack.snapshot',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'layers',
             'properties' => [
@@ -56,7 +56,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'system',
-            'event' => 'heartbeat.ping',
+            'event' => 'system.heartbeat.ping',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'heart',
             'properties' => [
@@ -102,7 +102,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'order.placed',
+            'event' => 'ecommerce.order.placed',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
             'properties' => $properties,
@@ -141,7 +141,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'item.purchased',
+            'event' => 'ecommerce.item.purchased',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
             'properties' => [
@@ -179,7 +179,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'order.fulfilled',
+            'event' => 'ecommerce.order.fulfilled',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
             'properties' => [
@@ -216,7 +216,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'order.refunded',
+            'event' => 'ecommerce.order.refunded',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
             'properties' => [
@@ -253,7 +253,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'order.cancelled',
+            'event' => 'ecommerce.order.cancelled',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
             'properties' => [
@@ -285,7 +285,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'cart.item.added',
+            'event' => 'ecommerce.cart.added',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'package-plus',
             'properties' => [
@@ -319,7 +319,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'cart.item.removed',
+            'event' => 'ecommerce.cart.removed',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'package-minus',
             'properties' => [
@@ -350,7 +350,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'checkout.started',
+            'event' => 'ecommerce.checkout.started',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'credit-card',
             'properties' => [
@@ -378,7 +378,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'checkout.abandoned',
+            'event' => 'ecommerce.checkout.abandoned',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'hourglass',
             'isLifecycle' => true,
@@ -411,7 +411,7 @@ final class CanonicalEnvelopeBuilders
             'projectId' => $resolved['projectId'],
             'projectSourceId' => $resolved['projectSourceId'],
             'channel' => 'ecommerce',
-            'event' => 'cart.recovered',
+            'event' => 'ecommerce.cart.recovered',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'rotate-ccw',
             'properties' => [

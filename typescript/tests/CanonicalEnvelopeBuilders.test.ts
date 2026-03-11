@@ -34,7 +34,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       routing
     );
 
-    expect(event.event).toBe('order.placed');
+    expect(event.event).toBe('ecommerce.order.placed');
     expect(event.isLifecycle).toBe(true);
     expect(event.entityType).toBe('order');
     expect(event.externalEntityId).toBe('woo:ord_123');
@@ -77,6 +77,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
+    expect(item.event).toBe('ecommerce.item.purchased');
     expect(item.tags.customerToken).toBe('cust_tok_1');
 
     const fulfilled = CanonicalEnvelopeBuilders.buildEcommerceOrderFulfilledEvent(
@@ -90,7 +91,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(fulfilled.event).toBe('order.fulfilled');
+    expect(fulfilled.event).toBe('ecommerce.order.fulfilled');
     expect(fulfilled.state).toBe('fulfilled');
     expect(fulfilled.externalEntityId).toBe('woo:ord_123');
     expect(fulfilled.tags.customerToken).toBe('cust_tok_1');
@@ -106,7 +107,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(refunded.event).toBe('order.refunded');
+    expect(refunded.event).toBe('ecommerce.order.refunded');
     expect(refunded.state).toBe('refunded');
 
     const cancelled = CanonicalEnvelopeBuilders.buildEcommerceOrderCancelledEvent(
@@ -120,7 +121,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(cancelled.event).toBe('order.cancelled');
+    expect(cancelled.event).toBe('ecommerce.order.cancelled');
     expect(cancelled.state).toBe('cancelled');
   });
 
@@ -142,7 +143,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(added.event).toBe('cart.item.added');
+    expect(added.event).toBe('ecommerce.cart.added');
     expect(added.properties.unitPrice).toBe(20);
     expect(added.tags.productId).toBe('sku_1');
 
@@ -158,7 +159,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(removed.event).toBe('cart.item.removed');
+    expect(removed.event).toBe('ecommerce.cart.removed');
     expect(removed.properties.unitPrice).toBeUndefined();
     expect(removed.properties.lineTotal).toBeUndefined();
 
@@ -172,7 +173,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(checkoutStarted.event).toBe('checkout.started');
+    expect(checkoutStarted.event).toBe('ecommerce.checkout.started');
     expect(checkoutStarted.tags.isGuest).toBe('true');
 
     const abandoned = CanonicalEnvelopeBuilders.buildEcommerceCheckoutAbandonedEvent(
@@ -186,7 +187,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(abandoned.event).toBe('checkout.abandoned');
+    expect(abandoned.event).toBe('ecommerce.checkout.abandoned');
     expect(abandoned.isLifecycle).toBe(true);
     expect(abandoned.entityType).toBe('checkout');
     expect(abandoned.state).toBe('abandoned');
@@ -203,7 +204,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
       },
       routing
     );
-    expect(recovered.event).toBe('cart.recovered');
+    expect(recovered.event).toBe('ecommerce.cart.recovered');
     expect(recovered.properties.minutesSinceAbandonment).toBe(12);
   });
 });

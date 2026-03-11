@@ -4,7 +4,7 @@
   "projectId": "prj_123",
   "projectSourceId": "psrc_ecommerce_123",
   "channel": "ecommerce",
-  "event": "order.placed",
+  "event": "ecommerce.order.placed",
   "timestamp": "2026-03-09T11:02:45.000Z",
   "source": "woocommerce-plugin",
   "description": "Customer placed a new ecommerce order",

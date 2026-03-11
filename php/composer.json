@@ -1,6 +1,6 @@
 {
   "name": "useburrow/sdk-php",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Burrow PHP SDK for plugin integrations.",
   "type": "library",
   "license": "MIT",
