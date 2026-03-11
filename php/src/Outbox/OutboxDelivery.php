@@ -85,6 +85,42 @@ final class OutboxDelivery
     }
 
     /**
+     * Enqueue events and immediately attempt to flush them.
+     * On success, events are recorded in the sent ledger.
+     * On failure, events remain in the outbox for retry via cron/worker.
+     *
+     * Use for realtime hooks (form submissions, order events) where
+     * immediate delivery is preferred. Backfill and background system
+     * events should continue using enqueueEvents() alone.
+     *
+     * @param list<array<string,mixed>> $events
+     * @param array<string,mixed> $context
+     * @return array{enqueued:int,deduped:int,sent:int,retrying:int,failed:int}
+     */
+    public function dispatchImmediate(array $events, array $context = []): array
+    {
+        $enqueue = $this->enqueueEvents($events, $context);
+        if ($enqueue['enqueued'] === 0) {
+            return [
+                'enqueued' => 0,
+                'deduped' => $enqueue['deduped'],
+                'sent' => 0,
+                'retrying' => 0,
+                'failed' => 0,
+            ];
+        }
+
+        $flush = $this->flushOutbox($enqueue['enqueued']);
+        return [
+            'enqueued' => $enqueue['enqueued'],
+            'deduped' => $enqueue['deduped'],
+            'sent' => $flush['sentCount'],
+            'retrying' => $flush['retryingCount'],
+            'failed' => $flush['failedCount'],
+        ];
+    }
+
+    /**
      * @param list<array<string,mixed>> $events
      * @param array<string,mixed> $context
      * @return array{

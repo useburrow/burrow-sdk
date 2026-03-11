@@ -14,6 +14,7 @@ use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkResponse;
+use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Outbox\EventKeyGenerator;
 use Burrow\Sdk\Outbox\InMemoryOutboxStore;
 use Burrow\Sdk\Outbox\OutboxDelivery;
@@ -23,6 +24,78 @@ use PHPUnit\Framework\TestCase;
 
 final class OutboxDeliveryTest extends TestCase
 {
+    public function testDispatchImmediateSendsOnSuccess(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $delivery = new OutboxDelivery($store, new DeliverySequenceClient([
+            new HttpResponse(200, ['ok' => true], '{"ok":true}'),
+        ]));
+
+        $result = $delivery->dispatchImmediate([$this->makeEvent('dispatch_1')]);
+        $stats = $delivery->getOutboxStats();
+
+        $this->assertSame(1, $result['enqueued']);
+        $this->assertSame(0, $result['deduped']);
+        $this->assertSame(1, $result['sent']);
+        $this->assertSame(0, $result['retrying']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame(1, $stats->sent);
+    }
+
+    public function testDispatchImmediateDedupesAlreadySent(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $delivery = new OutboxDelivery($store, new DeliverySequenceClient([
+            new HttpResponse(200, ['ok' => true], '{"ok":true}'),
+        ]));
+        $event = $this->makeEvent('dispatch_2');
+
+        $first = $delivery->dispatchImmediate([$event]);
+        $second = $delivery->dispatchImmediate([$event]);
+
+        $this->assertSame(1, $first['sent']);
+        $this->assertSame(0, $second['enqueued']);
+        $this->assertSame(1, $second['deduped']);
+        $this->assertSame(0, $second['sent']);
+    }
+
+    public function testDispatchImmediateFallsBackOnTransportFailure(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $delivery = new OutboxDelivery($store, new DeliverySequenceClient([
+            new TransportFailureException('timeout'),
+        ]), backoffStrategy: new \Burrow\Sdk\Outbox\ExponentialBackoffStrategy(baseDelaySeconds: 0, multiplier: 1, maxDelaySeconds: 0));
+
+        $result = $delivery->dispatchImmediate([$this->makeEvent('dispatch_3')]);
+        $stats = $delivery->getOutboxStats();
+
+        $this->assertSame(1, $result['enqueued']);
+        $this->assertSame(0, $result['sent']);
+        $this->assertSame(1, $result['retrying']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame(1, $stats->retrying);
+    }
+
+    public function testDispatchImmediateFallsBackOnNonRetryableFailure(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $delivery = new OutboxDelivery($store, new DeliverySequenceClient([
+            new UnexpectedResponseStatusException(
+                '/api/v1/events',
+                new HttpResponse(400, ['error' => 'invalid'], '{"error":"invalid"}')
+            ),
+        ]));
+
+        $result = $delivery->dispatchImmediate([$this->makeEvent('dispatch_4')]);
+        $stats = $delivery->getOutboxStats();
+
+        $this->assertSame(1, $result['enqueued']);
+        $this->assertSame(0, $result['sent']);
+        $this->assertSame(0, $result['retrying']);
+        $this->assertSame(1, $result['failed']);
+        $this->assertSame(1, $stats->failed);
+    }
+
     public function testSecondEnqueueIsDedupedAndNotSentTwice(): void
     {
         $store = new InMemoryOutboxStore();
