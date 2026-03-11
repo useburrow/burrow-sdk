@@ -271,6 +271,162 @@ final class CanonicalEnvelopeBuilders
 
     /**
      * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceCartItemAddedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['productId', 'productName', 'variantName', 'currency']);
+        self::assertRequiredNumericKeys($input, ['quantity', 'unitPrice', 'lineTotal', 'cartTotal', 'cartItemCount']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'cart.item.added',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'package-plus',
+            'properties' => [
+                'productId' => $input['productId'],
+                'productName' => $input['productName'],
+                'variantName' => $input['variantName'],
+                'quantity' => $input['quantity'],
+                'unitPrice' => $input['unitPrice'],
+                'lineTotal' => $input['lineTotal'],
+                'currency' => $input['currency'],
+                'cartTotal' => $input['cartTotal'],
+                'cartItemCount' => $input['cartItemCount'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken', 'productId', 'productName', 'category'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceCartItemRemovedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['productId', 'productName', 'currency']);
+        self::assertRequiredNumericKeys($input, ['quantity', 'cartTotal', 'cartItemCount']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'cart.item.removed',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'package-minus',
+            'properties' => [
+                'productId' => $input['productId'],
+                'productName' => $input['productName'],
+                'quantity' => $input['quantity'],
+                'currency' => $input['currency'],
+                'cartTotal' => $input['cartTotal'],
+                'cartItemCount' => $input['cartItemCount'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken', 'productId', 'productName', 'category'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceCheckoutStartedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['currency']);
+        self::assertRequiredNumericKeys($input, ['cartTotal', 'cartItemCount']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'checkout.started',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'credit-card',
+            'properties' => [
+                'cartTotal' => $input['cartTotal'],
+                'cartItemCount' => $input['cartItemCount'],
+                'currency' => $input['currency'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken', 'isGuest'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceCheckoutAbandonedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['currency', 'externalEntityId']);
+        self::assertRequiredNumericKeys($input, ['cartTotal', 'cartItemCount', 'minutesSinceCheckout']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'checkout.abandoned',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'hourglass',
+            'isLifecycle' => true,
+            'entityType' => 'checkout',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'abandoned',
+            'properties' => [
+                'cartTotal' => $input['cartTotal'],
+                'cartItemCount' => $input['cartItemCount'],
+                'currency' => $input['currency'],
+                'minutesSinceCheckout' => $input['minutesSinceCheckout'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceCartRecoveredEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['orderId', 'currency']);
+        self::assertRequiredNumericKeys($input, ['orderTotal', 'originalCartTotal', 'minutesSinceAbandonment']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'cart.recovered',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'rotate-ccw',
+            'properties' => [
+                'orderId' => $input['orderId'],
+                'orderTotal' => $input['orderTotal'],
+                'originalCartTotal' => $input['originalCartTotal'],
+                'currency' => $input['currency'],
+                'minutesSinceAbandonment' => $input['minutesSinceAbandonment'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
      * @param list<string> $keys
      */
     private static function assertRequiredObjectKeys(array $input, array $keys): void

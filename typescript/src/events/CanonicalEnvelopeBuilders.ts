@@ -3,6 +3,12 @@ import type { ChannelRoutingResolver } from './ChannelRoutingResolver.js';
 
 type EventInput = Record<string, unknown>;
 
+export interface EcommerceCartItemAddedInput extends EventInput {}
+export interface EcommerceCartItemRemovedInput extends EventInput {}
+export interface EcommerceCheckoutStartedInput extends EventInput {}
+export interface EcommerceCheckoutAbandonedInput extends EventInput {}
+export interface EcommerceCartRecoveredInput extends EventInput {}
+
 export class CanonicalEnvelopeBuilders {
   static buildEcommerceOrderPlacedEvent(input: EventInput, routing: ChannelRoutingResolver) {
     assertRequiredStringKeys(input, ['orderId', 'currency', 'submittedAt']);
@@ -93,6 +99,137 @@ export class CanonicalEnvelopeBuilders {
 
   static buildEcommerceOrderCancelledEvent(input: EventInput, routing: ChannelRoutingResolver) {
     return this.buildOrderLifecycleEvent(input, routing, 'order.cancelled', 'cancelled');
+  }
+
+  static buildEcommerceCartItemAddedEvent(input: EcommerceCartItemAddedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['productId', 'productName', 'variantName', 'currency']);
+    assertRequiredNumericKeys(input, ['quantity', 'unitPrice', 'lineTotal', 'cartTotal', 'cartItemCount']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'cart.item.added',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'package-plus',
+      properties: {
+        productId: input.productId,
+        productName: input.productName,
+        variantName: input.variantName,
+        quantity: input.quantity,
+        unitPrice: input.unitPrice,
+        lineTotal: input.lineTotal,
+        currency: input.currency,
+        cartTotal: input.cartTotal,
+        cartItemCount: input.cartItemCount,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken', 'productId', 'productName', 'category']),
+    });
+  }
+
+  static buildEcommerceCartItemRemovedEvent(input: EcommerceCartItemRemovedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['productId', 'productName', 'currency']);
+    assertRequiredNumericKeys(input, ['quantity', 'cartTotal', 'cartItemCount']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'cart.item.removed',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'package-minus',
+      properties: {
+        productId: input.productId,
+        productName: input.productName,
+        quantity: input.quantity,
+        currency: input.currency,
+        cartTotal: input.cartTotal,
+        cartItemCount: input.cartItemCount,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken', 'productId', 'productName', 'category']),
+    });
+  }
+
+  static buildEcommerceCheckoutStartedEvent(input: EcommerceCheckoutStartedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['currency']);
+    assertRequiredNumericKeys(input, ['cartTotal', 'cartItemCount']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'checkout.started',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'credit-card',
+      properties: {
+        cartTotal: input.cartTotal,
+        cartItemCount: input.cartItemCount,
+        currency: input.currency,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken', 'isGuest']),
+    });
+  }
+
+  static buildEcommerceCheckoutAbandonedEvent(input: EcommerceCheckoutAbandonedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['currency', 'externalEntityId']);
+    assertRequiredNumericKeys(input, ['cartTotal', 'cartItemCount', 'minutesSinceCheckout']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'checkout.abandoned',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'hourglass',
+      isLifecycle: true,
+      entityType: 'checkout',
+      externalEntityId: optionalString(input.externalEntityId),
+      state: 'abandoned',
+      properties: {
+        cartTotal: input.cartTotal,
+        cartItemCount: input.cartItemCount,
+        currency: input.currency,
+        minutesSinceCheckout: input.minutesSinceCheckout,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken']),
+    });
+  }
+
+  static buildEcommerceCartRecoveredEvent(input: EcommerceCartRecoveredInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['orderId', 'currency']);
+    assertRequiredNumericKeys(input, ['orderTotal', 'originalCartTotal', 'minutesSinceAbandonment']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'cart.recovered',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'rotate-ccw',
+      properties: {
+        orderId: input.orderId,
+        orderTotal: input.orderTotal,
+        originalCartTotal: input.originalCartTotal,
+        currency: input.currency,
+        minutesSinceAbandonment: input.minutesSinceAbandonment,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken']),
+    });
   }
 
   private static buildOrderLifecycleEvent(

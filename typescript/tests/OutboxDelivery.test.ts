@@ -38,6 +38,61 @@ function createClient(sequence: Array<HttpResponse | Error>): { client: BurrowCl
 }
 
 describe('OutboxDelivery', () => {
+  it('dispatchImmediate sends on success', async () => {
+    const { client } = createClient([{ status: 200, body: { ok: true }, raw: '{"ok":true}' }]);
+    const delivery = new OutboxDelivery(new InMemoryOutboxStore(), client);
+
+    const result = await delivery.dispatchImmediate([makeEvent('dispatch_1')]);
+
+    expect(result.enqueued).toBe(1);
+    expect(result.deduped).toBe(0);
+    expect(result.sent).toBe(1);
+    expect(result.retrying).toBe(0);
+    expect(result.failed).toBe(0);
+  });
+
+  it('dispatchImmediate dedupes already sent events', async () => {
+    const { client } = createClient([{ status: 200, body: { ok: true }, raw: '{"ok":true}' }]);
+    const delivery = new OutboxDelivery(new InMemoryOutboxStore(), client);
+    const event = makeEvent('dispatch_2');
+
+    const first = await delivery.dispatchImmediate([event]);
+    const second = await delivery.dispatchImmediate([event]);
+
+    expect(first.sent).toBe(1);
+    expect(second.enqueued).toBe(0);
+    expect(second.deduped).toBe(1);
+    expect(second.sent).toBe(0);
+  });
+
+  it('dispatchImmediate falls back on transport failure', async () => {
+    const { client } = createClient([new TransportError('timeout')]);
+    const delivery = new OutboxDelivery(new InMemoryOutboxStore(), client, {
+      backoffStrategy: { delayMsForAttempt: () => 0 },
+    });
+
+    const result = await delivery.dispatchImmediate([makeEvent('dispatch_3')]);
+    const stats = await delivery.getOutboxStats();
+
+    expect(result.sent).toBe(0);
+    expect(result.retrying).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(stats.retrying).toBe(1);
+  });
+
+  it('dispatchImmediate falls back on non-retryable failure', async () => {
+    const { client } = createClient([{ status: 400, body: { error: 'bad request' }, raw: '{"error":"bad request"}' }]);
+    const delivery = new OutboxDelivery(new InMemoryOutboxStore(), client);
+
+    const result = await delivery.dispatchImmediate([makeEvent('dispatch_4')]);
+    const stats = await delivery.getOutboxStats();
+
+    expect(result.sent).toBe(0);
+    expect(result.retrying).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(stats.failed).toBe(1);
+  });
+
   it('dedupes duplicate enqueue and does not send twice', async () => {
     const { client, transport } = createClient([{ status: 200, body: { ok: true }, raw: '{"ok":true}' }]);
     const delivery = new OutboxDelivery(new InMemoryOutboxStore(), client);

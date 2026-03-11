@@ -123,4 +123,87 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
     expect(cancelled.event).toBe('order.cancelled');
     expect(cancelled.state).toBe('cancelled');
   });
+
+  it('builds cart and checkout funnel events', () => {
+    const added = CanonicalEnvelopeBuilders.buildEcommerceCartItemAddedEvent(
+      {
+        organizationId: 'org_123',
+        productId: 'sku_1',
+        productName: 'Widget',
+        variantName: 'Blue / L',
+        quantity: 1,
+        unitPrice: 20,
+        lineTotal: 20,
+        currency: 'USD',
+        cartTotal: 90,
+        cartItemCount: 3,
+        customerToken: 'cust_tok_1',
+        category: 'apparel',
+      },
+      routing
+    );
+    expect(added.event).toBe('cart.item.added');
+    expect(added.properties.unitPrice).toBe(20);
+    expect(added.tags.productId).toBe('sku_1');
+
+    const removed = CanonicalEnvelopeBuilders.buildEcommerceCartItemRemovedEvent(
+      {
+        organizationId: 'org_123',
+        productId: 'sku_1',
+        productName: 'Widget',
+        quantity: 1,
+        currency: 'USD',
+        cartTotal: 70,
+        cartItemCount: 2,
+      },
+      routing
+    );
+    expect(removed.event).toBe('cart.item.removed');
+    expect(removed.properties.unitPrice).toBeUndefined();
+    expect(removed.properties.lineTotal).toBeUndefined();
+
+    const checkoutStarted = CanonicalEnvelopeBuilders.buildEcommerceCheckoutStartedEvent(
+      {
+        organizationId: 'org_123',
+        cartTotal: 70,
+        cartItemCount: 2,
+        currency: 'USD',
+        isGuest: 'true',
+      },
+      routing
+    );
+    expect(checkoutStarted.event).toBe('checkout.started');
+    expect(checkoutStarted.tags.isGuest).toBe('true');
+
+    const abandoned = CanonicalEnvelopeBuilders.buildEcommerceCheckoutAbandonedEvent(
+      {
+        organizationId: 'org_123',
+        externalEntityId: 'wc_session_abc123',
+        cartTotal: 70,
+        cartItemCount: 2,
+        currency: 'USD',
+        minutesSinceCheckout: 35,
+      },
+      routing
+    );
+    expect(abandoned.event).toBe('checkout.abandoned');
+    expect(abandoned.isLifecycle).toBe(true);
+    expect(abandoned.entityType).toBe('checkout');
+    expect(abandoned.state).toBe('abandoned');
+    expect(abandoned.externalEntityId).toBe('wc_session_abc123');
+
+    const recovered = CanonicalEnvelopeBuilders.buildEcommerceCartRecoveredEvent(
+      {
+        organizationId: 'org_123',
+        orderId: 'ord_123',
+        orderTotal: 90,
+        originalCartTotal: 70,
+        currency: 'USD',
+        minutesSinceAbandonment: 12,
+      },
+      routing
+    );
+    expect(recovered.event).toBe('cart.recovered');
+    expect(recovered.properties.minutesSinceAbandonment).toBe(12);
+  });
 });

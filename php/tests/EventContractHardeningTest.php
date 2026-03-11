@@ -176,6 +176,76 @@ final class EventContractHardeningTest extends TestCase
             'tags' => ['provider' => 'woocommerce'],
         ], $resolver);
         $this->assertArrayNotHasKey('couponCode', $withoutCoupon['tags']);
+
+        $cartAdded = CanonicalEnvelopeBuilders::buildEcommerceCartItemAddedEvent([
+            'organizationId' => 'org_123',
+            'productId' => 'sku_1',
+            'productName' => 'Widget',
+            'variantName' => 'Blue / L',
+            'quantity' => 1,
+            'unitPrice' => 19.99,
+            'lineTotal' => 19.99,
+            'currency' => 'USD',
+            'cartTotal' => 120.50,
+            'cartItemCount' => 3,
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce', 'category' => 'apparel'],
+        ], $resolver);
+        $this->assertSame('cart.item.added', $cartAdded['event']);
+        $this->assertSame(19.99, $cartAdded['properties']['unitPrice']);
+        $this->assertSame('sku_1', $cartAdded['tags']['productId']);
+
+        $cartRemoved = CanonicalEnvelopeBuilders::buildEcommerceCartItemRemovedEvent([
+            'organizationId' => 'org_123',
+            'productId' => 'sku_1',
+            'productName' => 'Widget',
+            'quantity' => 1,
+            'currency' => 'USD',
+            'cartTotal' => 100.50,
+            'cartItemCount' => 2,
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('cart.item.removed', $cartRemoved['event']);
+        $this->assertArrayNotHasKey('unitPrice', $cartRemoved['properties']);
+        $this->assertArrayNotHasKey('lineTotal', $cartRemoved['properties']);
+
+        $checkoutStarted = CanonicalEnvelopeBuilders::buildEcommerceCheckoutStartedEvent([
+            'organizationId' => 'org_123',
+            'cartTotal' => 100.50,
+            'cartItemCount' => 2,
+            'currency' => 'USD',
+            'isGuest' => 'true',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('checkout.started', $checkoutStarted['event']);
+        $this->assertSame('true', $checkoutStarted['tags']['isGuest']);
+
+        $checkoutAbandoned = CanonicalEnvelopeBuilders::buildEcommerceCheckoutAbandonedEvent([
+            'organizationId' => 'org_123',
+            'externalEntityId' => 'wc_session_abc123',
+            'cartTotal' => 100.50,
+            'cartItemCount' => 2,
+            'currency' => 'USD',
+            'minutesSinceCheckout' => 45,
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('checkout.abandoned', $checkoutAbandoned['event']);
+        $this->assertTrue($checkoutAbandoned['isLifecycle']);
+        $this->assertSame('checkout', $checkoutAbandoned['entityType']);
+        $this->assertSame('abandoned', $checkoutAbandoned['state']);
+        $this->assertSame('wc_session_abc123', $checkoutAbandoned['externalEntityId']);
+
+        $cartRecovered = CanonicalEnvelopeBuilders::buildEcommerceCartRecoveredEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1003',
+            'orderTotal' => 100.50,
+            'originalCartTotal' => 90.25,
+            'currency' => 'USD',
+            'minutesSinceAbandonment' => 11,
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('cart.recovered', $cartRecovered['event']);
+        $this->assertSame(11, $cartRecovered['properties']['minutesSinceAbandonment']);
     }
 
     public function testBackfillUsesCanonicalNamesAndChannelSourceIds(): void

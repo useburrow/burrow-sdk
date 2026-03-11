@@ -33,6 +33,14 @@ export interface BackfillBatchResult {
   checkpointAdvanceSafe: boolean;
 }
 
+export interface DispatchImmediateResult {
+  enqueued: number;
+  deduped: number;
+  sent: number;
+  retrying: number;
+  failed: number;
+}
+
 export class OutboxDelivery {
   private readonly worker: OutboxWorker;
 
@@ -80,6 +88,37 @@ export class OutboxDelivery {
 
   async getOutboxStats(): Promise<OutboxStats> {
     return this.store.getStats();
+  }
+
+  /**
+   * Enqueue events and immediately attempt to flush them.
+   * On success, events are recorded in the sent ledger.
+   * On failure, events remain in the outbox for retry via cron/worker.
+   *
+   * Use for realtime hooks (form submissions, order events) where
+   * immediate delivery is preferred. Backfill and background system
+   * events should continue using enqueueEvents() alone.
+   */
+  async dispatchImmediate(events: JsonObject[], context: EnqueueEventsContext = {}): Promise<DispatchImmediateResult> {
+    const enqueue = await this.enqueueEvents(events, context);
+    if (enqueue.enqueued === 0) {
+      return {
+        enqueued: 0,
+        deduped: enqueue.deduped,
+        sent: 0,
+        retrying: 0,
+        failed: 0,
+      };
+    }
+
+    const flush = await this.flushOutbox(enqueue.enqueued);
+    return {
+      enqueued: enqueue.enqueued,
+      deduped: enqueue.deduped,
+      sent: flush.sentCount,
+      retrying: flush.retryingCount,
+      failed: flush.failedCount,
+    };
   }
 
   async runBackfillBatch(events: JsonObject[], context: EnqueueEventsContext = {}, flushLimit?: number): Promise<BackfillBatchResult> {

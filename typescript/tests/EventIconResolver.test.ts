@@ -10,6 +10,11 @@ describe('resolveIconForEvent', () => {
     expect(resolveIconForEvent('ecommerce', 'order.fulfilled')).toBe('badge-check');
     expect(resolveIconForEvent('ecommerce', 'order.refunded')).toBe('rotate-ccw');
     expect(resolveIconForEvent('ecommerce', 'item.purchased')).toBe('package');
+    expect(resolveIconForEvent('ecommerce', 'cart.item.added')).toBe('package-plus');
+    expect(resolveIconForEvent('ecommerce', 'cart.item.removed')).toBe('package-minus');
+    expect(resolveIconForEvent('ecommerce', 'checkout.started')).toBe('credit-card');
+    expect(resolveIconForEvent('ecommerce', 'checkout.abandoned')).toBe('hourglass');
+    expect(resolveIconForEvent('ecommerce', 'cart.recovered')).toBe('rotate-ccw');
   });
 
   it('falls back to channel default when event is unknown', () => {
