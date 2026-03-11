@@ -1,5 +1,6 @@
 import type { JsonObject, JsonValue } from '../client/types.js';
 import { resolveIconForEvent } from './EventIconResolver.js';
+import { resolveSourceForEvent } from './EventSourceResolver.js';
 
 export interface EventEnvelope extends JsonObject {
   organizationId: string;
@@ -61,7 +62,10 @@ export class EventEnvelopeBuilder {
       channel: String(input.channel),
       event: String(input.event),
       timestamp: String(input.timestamp),
-      source: input.source !== undefined && input.source !== null ? String(input.source) : null,
+      source:
+        input.source !== undefined && input.source !== null && String(input.source).trim() !== ''
+          ? String(input.source)
+          : resolveSourceForEvent(input as unknown as JsonObject),
       description:
         input.description !== undefined && input.description !== null ? String(input.description) : null,
       icon:

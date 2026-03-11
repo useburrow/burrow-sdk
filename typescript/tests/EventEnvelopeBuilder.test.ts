@@ -19,6 +19,7 @@ describe('EventEnvelopeBuilder', () => {
     expect(event.integrationId).toBeNull();
     expect(event.clientSourceId).toBeNull();
     expect(event.icon).toBe('file-signature');
+    expect(event.source).toBe('wordpress-plugin');
     expect(event.entityType).toBeNull();
     expect(event.externalEntityId).toBeNull();
     expect(event.externalEventId).toBeNull();
@@ -72,5 +73,51 @@ describe('EventEnvelopeBuilder', () => {
     });
 
     expect(event.icon).toBe('star');
+  });
+
+  it('resolves provider-specific source for forms and ecommerce', () => {
+    const formsEvent = EventEnvelopeBuilder.build({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'forms',
+      event: 'forms.submission.received',
+      timestamp: '2026-03-09T00:00:00.000Z',
+      properties: { provider: 'gravityforms' },
+    });
+    expect(formsEvent.source).toBe('gravity-forms');
+
+    const ecommerceEvent = EventEnvelopeBuilder.build({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'ecommerce',
+      event: 'ecommerce.order.placed',
+      timestamp: '2026-03-09T00:00:00.000Z',
+      tags: { provider: 'woocommerce' },
+    });
+    expect(ecommerceEvent.source).toBe('woocommerce');
+  });
+
+  it('falls back to platform source for unknown provider and preserves explicit source', () => {
+    const fallbackEvent = EventEnvelopeBuilder.build({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'forms',
+      event: 'forms.submission.received',
+      timestamp: '2026-03-09T00:00:00.000Z',
+      platform: 'craft',
+      properties: { provider: 'custom-form-plugin' },
+    });
+    expect(fallbackEvent.source).toBe('craft-plugin');
+
+    const explicitSourceEvent = EventEnvelopeBuilder.build({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'forms',
+      event: 'forms.submission.received',
+      timestamp: '2026-03-09T00:00:00.000Z',
+      source: 'explicit-source',
+      properties: { provider: 'gravityforms' },
+    });
+    expect(explicitSourceEvent.source).toBe('explicit-source');
   });
 });

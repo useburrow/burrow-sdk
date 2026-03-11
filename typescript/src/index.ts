@@ -9,10 +9,13 @@ export * from './transport/errors.js';
 
 export * from './contracts/OnboardingDiscoveryRequest.js';
 export * from './contracts/OnboardingLinkRequest.js';
+export * from './contracts/OnboardingLinkResponse.js';
 export * from './contracts/FormsContractSubmissionRequest.js';
+export * from './contracts/FormsContracts.js';
 
 export * from './events/EventEnvelopeBuilder.js';
 export * from './events/EventIconResolver.js';
+export * from './events/EventSourceResolver.js';
 
 export * from './outbox/OutboxStore.js';
 export * from './outbox/InMemoryOutboxStore.js';

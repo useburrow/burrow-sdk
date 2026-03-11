@@ -9,17 +9,31 @@ import {
 } from './BackfillTypes.js';
 import type { FormsContractSubmissionRequest } from '../contracts/FormsContractSubmissionRequest.js';
 import { toFormsContractSubmissionPayload } from '../contracts/FormsContractSubmissionRequest.js';
+import {
+  parseFormsContractsResponse,
+  toFormsContractsFetchPayload,
+  type FormsContractsResponse,
+} from '../contracts/FormsContracts.js';
 import type { OnboardingDiscoveryRequest } from '../contracts/OnboardingDiscoveryRequest.js';
 import { toOnboardingDiscoveryPayload } from '../contracts/OnboardingDiscoveryRequest.js';
 import type { OnboardingLinkRequest } from '../contracts/OnboardingLinkRequest.js';
 import { toOnboardingLinkPayload } from '../contracts/OnboardingLinkRequest.js';
+import {
+  isProjectScopedIngestionKey,
+  parseOnboardingLinkResponse,
+  toLinkedProjectDeepLink,
+  type LinkedProjectDeepLink,
+  type OnboardingLinkResponse,
+} from '../contracts/OnboardingLinkResponse.js';
 import { HttpStatusError } from '../transport/errors.js';
 import type { BurrowClientOptions } from './types.js';
 
 export class BurrowClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private apiKey: string;
   private readonly transport: BurrowClientOptions['transport'];
+  private scopedProjectId: string | null = null;
+  private lastLinkResponse: OnboardingLinkResponse | null = null;
 
   constructor(options: BurrowClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
@@ -31,15 +45,47 @@ export class BurrowClient {
     return this.post('/api/v1/plugin-onboarding/discover', toOnboardingDiscoveryPayload(request));
   }
 
-  async link(request: OnboardingLinkRequest): Promise<HttpResponse> {
-    return this.post('/api/v1/plugin-onboarding/link', toOnboardingLinkPayload(request));
+  async link(request: OnboardingLinkRequest): Promise<OnboardingLinkResponse> {
+    const response = await this.post('/api/v1/plugin-onboarding/link', toOnboardingLinkPayload(request));
+    const parsed = parseOnboardingLinkResponse(response.body);
+    this.lastLinkResponse = parsed;
+
+    if (parsed.ingestionKey?.key) {
+      this.apiKey = parsed.ingestionKey.key;
+    }
+
+    if (isProjectScopedIngestionKey(parsed.ingestionKey)) {
+      this.scopedProjectId = parsed.ingestionKey.projectId;
+    } else {
+      this.scopedProjectId = null;
+    }
+
+    return parsed;
   }
 
-  async submitFormsContract(request: FormsContractSubmissionRequest): Promise<HttpResponse> {
-    return this.post('/api/v1/plugin-onboarding/forms/contracts', toFormsContractSubmissionPayload(request));
+  async submitFormsContract(request: FormsContractSubmissionRequest): Promise<FormsContractsResponse> {
+    const payload = toFormsContractSubmissionPayload(request);
+    this.assertScopedProjectAllowedForFormsPayload(payload);
+    const response = await this.post('/api/v1/plugin-onboarding/forms/contracts', payload);
+    return parseFormsContractsResponse(response.body);
+  }
+
+  async fetchFormsContracts(projectId: string, platform: string): Promise<FormsContractsResponse> {
+    this.assertScopedProjectIdMatches(projectId, 'forms contracts fetch');
+    const response = await this.post('/api/v1/plugin-onboarding/forms/contracts/fetch', toFormsContractsFetchPayload(projectId, platform));
+    return parseFormsContractsResponse(response.body);
+  }
+
+  getLinkedProjectDeepLink(): LinkedProjectDeepLink | null {
+    if (!this.lastLinkResponse) {
+      return null;
+    }
+
+    return toLinkedProjectDeepLink(this.lastLinkResponse);
   }
 
   async publishEvent(event: JsonObject): Promise<HttpResponse> {
+    this.assertScopedProjectAllowedForEvent(event);
     return this.post('/api/v1/events', event, [200, 207]);
   }
 
@@ -223,6 +269,47 @@ export class BurrowClient {
     }
 
     throw new Error('Backfill retry attempts exhausted.');
+  }
+
+  private assertScopedProjectAllowedForEvent(event: JsonObject): void {
+    if (!this.scopedProjectId) {
+      return;
+    }
+
+    const projectId = typeof event.projectId === 'string' ? event.projectId.trim() : '';
+    if (!projectId) {
+      throw new Error('projectId is required when using a project-scoped ingestion key.');
+    }
+
+    if (projectId !== this.scopedProjectId) {
+      throw new Error(`projectId "${projectId}" does not match scoped key project "${this.scopedProjectId}".`);
+    }
+  }
+
+  private assertScopedProjectAllowedForFormsPayload(payload: JsonObject): void {
+    if (!this.scopedProjectId) {
+      return;
+    }
+
+    const routing = isJsonObject(payload.routing) ? payload.routing : null;
+    const projectId = routing && typeof routing.projectId === 'string' ? routing.projectId.trim() : '';
+    if (!projectId) {
+      throw new Error('routing.projectId is required when using a project-scoped ingestion key.');
+    }
+
+    this.assertScopedProjectIdMatches(projectId, 'forms contracts');
+  }
+
+  private assertScopedProjectIdMatches(projectId: string, operation: string): void {
+    if (!this.scopedProjectId) {
+      return;
+    }
+
+    if (projectId !== this.scopedProjectId) {
+      throw new Error(
+        `Cannot ${operation} for project "${projectId}" with scoped key for project "${this.scopedProjectId}".`
+      );
+    }
   }
 }
 

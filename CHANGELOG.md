@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - project-scoped ingestion key metadata (`ingestionKey`)
   - linked project deep-link metadata (`burrowProjectPath`, `burrowProjectUrl`)
 - Added `getLinkedProjectDeepLink()` helper for plugin settings UIs.
+- Added TypeScript onboarding link response models for project-scoped ingestion key metadata and linked project deep-links.
+- Added TypeScript `getLinkedProjectDeepLink()` helper and forms contracts fetch response parsing.
 
 ### Changed
 
@@ -32,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migration note: `source` now captures origin provider when available, not just host platform plugin.
 - Changed PHP link flow to store and use project-scoped ingestion key returned from onboarding link.
 - Changed PHP event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
+- Changed TypeScript link flow to store and use project-scoped ingestion key returned from onboarding link.
+- Changed TypeScript event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
+- Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
 
 ## [0.2.0] - 2026-03-09
 

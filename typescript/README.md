@@ -42,10 +42,15 @@ await client.discover({
   capabilities: { forms: ['freeform'] },
 });
 
-await client.link({
+const link = await client.link({
   site: { url: 'https://example.com' },
   selection: { organizationId: 'org_123', projectId: 'prj_123' },
 });
+
+// SDK stores project-scoped ingestion key returned from link and
+// uses it for subsequent event/forms calls.
+const deepLink = client.getLinkedProjectDeepLink();
+// deepLink?.path, deepLink?.url
 
 await client.submitFormsContract({
   platform: 'craft',
@@ -86,6 +91,10 @@ Lifecycle/correlation fields are supported directly in the envelope:
 - `icon`, `entityType`, `externalEntityId`, `externalEventId`
 - `state`, `stateChangedAt`
 
+`source` now captures origin provider for forms/ecommerce when known
+(for example `gravity-forms`, `fluent-forms`, `woocommerce`, `craft-commerce`)
+instead of always using a generic platform label.
+
 ### Icon Mapping Behavior
 
 If `icon` is omitted, the SDK resolves a canonical Lucide icon from event/channel mappings.
@@ -105,6 +114,16 @@ Recommended override points:
 - plugin-level event override map
 
 Choose Lucide icon names from https://lucide.dev/icons and send the icon key string (for example `shopping-cart`, `file-signature`, `layers`).
+
+### Source Mapping Behavior
+
+`EventEnvelopeBuilder` resolves `source` in this order:
+
+1. explicit `source` override
+2. provider-specific source for `forms.*`/`ecommerce.*` events when provider is known
+3. platform fallback (`wordpress-plugin` by default, `craft-plugin` when platform is `craft`)
+
+Source values follow Burrow slug conventions: lowercase and hyphenated.
 
 ### Backfill Events (Run After Final Contract Setup)
 
@@ -141,6 +160,9 @@ Validation summary fields:
 - `result.validationRejections` (index + reason + message)
 
 Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for each backfilled record.
+Migration note for scoped keys: after onboarding link, SDK uses returned project-scoped key and enforces project guards:
+- events require `projectId` and it must match scoped project
+- forms contracts/fetch must target scoped project
 
 ### In-Memory Outbox + Worker Loop
 
