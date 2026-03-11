@@ -11,8 +11,10 @@ use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\FormsContractsResponse;
+use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
+use Burrow\Sdk\Contracts\OnboardingLinkResponse;
 use Burrow\Sdk\Outbox\ExponentialBackoffStrategy;
 use Burrow\Sdk\Outbox\InMemoryOutboxStore;
 use Burrow\Sdk\Outbox\OutboxStatus;
@@ -127,9 +129,9 @@ final class SequenceClient implements BurrowClientInterface
         return $this->next();
     }
 
-    public function link(OnboardingLinkRequest $request): HttpResponse
+    public function link(OnboardingLinkRequest $request): OnboardingLinkResponse
     {
-        return $this->next();
+        return OnboardingLinkResponse::fromResponseBody($this->next()->body);
     }
 
     public function submitFormsContract(FormsContractSubmissionRequest $request): FormsContractsResponse
@@ -140,6 +142,11 @@ final class SequenceClient implements BurrowClientInterface
     public function fetchFormsContracts(string $projectId, string $platform): FormsContractsResponse
     {
         return FormsContractsResponse::fromResponseBody($this->next()->body);
+    }
+
+    public function getLinkedProjectDeepLink(): ?LinkedProjectDeepLink
+    {
+        return null;
     }
 
     public function publishEvent(array $event): HttpResponse

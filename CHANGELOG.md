@@ -20,12 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `FormsContractCacheRepositoryInterface`
   - `FormsContractCacheSerializer`
   - `InMemoryFormsContractCacheRepository`
+- Added PHP onboarding link response models for:
+  - project-scoped ingestion key metadata (`ingestionKey`)
+  - linked project deep-link metadata (`burrowProjectPath`, `burrowProjectUrl`)
+- Added `getLinkedProjectDeepLink()` helper for plugin settings UIs.
 
 ### Changed
 
 - Changed PHP `submitFormsContract(...)` to return typed contract response data (`projectSourceId`, `contractsVersion`, `contractMappings`, `formsContracts`) for plugin persistence/reconciliation.
 - Changed PHP event envelope source resolution to capture provider origin for forms/ecommerce events (for example `gravity-forms`, `fluent-forms`, `woocommerce`) with explicit override support and platform fallback defaults.
 - Migration note: `source` now captures origin provider when available, not just host platform plugin.
+- Changed PHP link flow to store and use project-scoped ingestion key returned from onboarding link.
+- Changed PHP event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
 
 ## [0.2.0] - 2026-03-09
 

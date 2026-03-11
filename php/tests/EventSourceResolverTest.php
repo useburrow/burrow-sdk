@@ -28,6 +28,11 @@ final class EventSourceResolverTest extends TestCase
             'channel' => 'ecommerce',
             'tags' => ['provider' => 'woocommerce'],
         ]));
+
+        $this->assertSame('craft-commerce', EventSourceResolver::resolveSourceForEvent([
+            'channel' => 'ecommerce',
+            'properties' => ['provider' => 'craftcommerce'],
+        ]));
     }
 
     public function testFallsBackToPlatformPluginWhenProviderUnknown(): void

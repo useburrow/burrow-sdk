@@ -11,8 +11,10 @@ use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractsFetchRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 use Burrow\Sdk\Contracts\FormsContractsResponse;
+use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
+use Burrow\Sdk\Contracts\OnboardingLinkResponse;
 use Burrow\Sdk\Transport\ApiKeyAuthHeaderProvider;
 use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
 use Burrow\Sdk\Transport\HttpResponse;
@@ -22,36 +24,61 @@ final class BurrowClient implements BurrowClientInterface
 {
     public function __construct(
         private readonly string $baseUrl,
-        private readonly string $apiKey,
+        private string $apiKey,
         private readonly HttpTransportInterface $transport
     ) {
     }
+
+    private ?string $scopedProjectId = null;
+    private ?OnboardingLinkResponse $lastLinkResponse = null;
 
     public function discover(OnboardingDiscoveryRequest $request): HttpResponse
     {
         return $this->post('/api/v1/plugin-onboarding/discover', $request->toArray());
     }
 
-    public function link(OnboardingLinkRequest $request): HttpResponse
+    public function link(OnboardingLinkRequest $request): OnboardingLinkResponse
     {
-        return $this->post('/api/v1/plugin-onboarding/link', $request->toArray());
+        $response = $this->post('/api/v1/plugin-onboarding/link', $request->toArray());
+        $parsed = OnboardingLinkResponse::fromResponseBody($response->body);
+        $this->lastLinkResponse = $parsed;
+
+        if ($parsed->ingestionKey !== null && $parsed->ingestionKey->key !== '') {
+            $this->apiKey = $parsed->ingestionKey->key;
+        }
+
+        if ($parsed->ingestionKey !== null && $parsed->ingestionKey->isProjectScoped()) {
+            $this->scopedProjectId = $parsed->ingestionKey->projectId;
+        } else {
+            $this->scopedProjectId = null;
+        }
+
+        return $parsed;
     }
 
     public function submitFormsContract(FormsContractSubmissionRequest $request): FormsContractsResponse
     {
+        $this->assertScopedProjectAllowedForFormsPayload($request->toArray());
         $response = $this->post('/api/v1/plugin-onboarding/forms/contracts', $request->toArray());
         return FormsContractsResponse::fromResponseBody($response->body);
     }
 
     public function fetchFormsContracts(string $projectId, string $platform): FormsContractsResponse
     {
+        $this->assertScopedProjectIdMatches($projectId, 'forms contracts fetch');
         $request = new FormsContractsFetchRequest($platform, $projectId);
         $response = $this->post('/api/v1/plugin-onboarding/forms/contracts/fetch', $request->toArray());
         return FormsContractsResponse::fromResponseBody($response->body);
     }
 
+    public function getLinkedProjectDeepLink(): ?LinkedProjectDeepLink
+    {
+        return $this->lastLinkResponse?->toDeepLink();
+    }
+
     public function publishEvent(array $event): HttpResponse
     {
+        $this->assertScopedProjectAllowedForEvent($event);
         return $this->post('/api/v1/events', $event);
     }
 
@@ -435,5 +462,81 @@ final class BurrowClient implements BurrowClientInterface
             rejectedCount: $rejectedCount,
             latestCursor: $latestCursor
         ));
+    }
+
+    /**
+     * @param array<string,mixed> $event
+     */
+    private function assertScopedProjectAllowedForEvent(array $event): void
+    {
+        if ($this->scopedProjectId === null) {
+            return;
+        }
+
+        $projectId = isset($event['projectId']) ? trim((string) $event['projectId']) : '';
+        if ($projectId === '') {
+            throw new \InvalidArgumentException('projectId is required when using a project-scoped ingestion key.');
+        }
+
+        if ($projectId !== $this->scopedProjectId) {
+            throw new \InvalidArgumentException(sprintf(
+                'projectId "%s" does not match scoped key project "%s".',
+                $projectId,
+                $this->scopedProjectId
+            ));
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function assertScopedProjectAllowedForFormsPayload(array $payload): void
+    {
+        if ($this->scopedProjectId === null) {
+            return;
+        }
+
+        $projectId = $this->extractProjectIdFromRouting($payload);
+        if ($projectId === null) {
+            throw new \InvalidArgumentException(
+                'routing.projectId is required when using a project-scoped ingestion key.'
+            );
+        }
+
+        $this->assertScopedProjectIdMatches($projectId, 'forms contracts');
+    }
+
+    private function assertScopedProjectIdMatches(string $projectId, string $operation): void
+    {
+        if ($this->scopedProjectId === null) {
+            return;
+        }
+
+        if ($projectId !== $this->scopedProjectId) {
+            throw new \InvalidArgumentException(sprintf(
+                'Cannot %s for project "%s" with scoped key for project "%s".',
+                $operation,
+                $projectId,
+                $this->scopedProjectId
+            ));
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function extractProjectIdFromRouting(array $payload): ?string
+    {
+        $routing = $payload['routing'] ?? null;
+        if (!is_array($routing)) {
+            return null;
+        }
+
+        $projectId = $routing['projectId'] ?? null;
+        if (!is_string($projectId) || trim($projectId) === '') {
+            return null;
+        }
+
+        return trim($projectId);
     }
 }

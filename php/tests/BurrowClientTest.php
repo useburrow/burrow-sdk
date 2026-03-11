@@ -13,6 +13,7 @@ use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Transport\HttpResponse;
 use Burrow\Sdk\Transport\HttpTransportInterface;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class BurrowClientTest extends TestCase
@@ -73,6 +74,146 @@ final class BurrowClientTest extends TestCase
         $this->expectException(UnexpectedResponseStatusException::class);
         $client->publishEvent(['event' => 'forms.submission.received']);
     }
+
+    public function testParsesLinkResponseDeepLinkAndUsesScopedIngestionKeyForEvents(): void
+    {
+        $transport = new QueueRecordingTransport([
+            new HttpResponse(200, [
+                'routing' => ['projectId' => 'prj_123'],
+                'ingestionKey' => [
+                    'key' => 'burrow_prj_key_abc',
+                    'keyPrefix' => 'burrow_prj',
+                    'scope' => 'project',
+                    'projectId' => 'prj_123',
+                ],
+                'project' => [
+                    'id' => 'prj_123',
+                    'name' => 'Anysizebasket',
+                    'slug' => 'anysizebasket-com',
+                    'clientId' => 'cli_123',
+                    'clientName' => 'Three M Tool',
+                    'clientSlug' => 'three-m-tool',
+                    'burrowProjectPath' => '/clients/three-m-tool/projects/anysizebasket-com',
+                    'burrowProjectUrl' => 'https://app.useburrow.com/clients/three-m-tool/projects/anysizebasket-com',
+                ],
+            ], '{"ok":true}'),
+            new HttpResponse(200, ['ok' => true], '{"ok":true}'),
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+
+        $link = $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+
+        $this->assertNotNull($link->ingestionKey);
+        $this->assertSame('project', $link->ingestionKey?->scope);
+        $this->assertSame('prj_123', $link->ingestionKey?->projectId);
+        $this->assertNotNull($link->project);
+        $this->assertSame('/clients/three-m-tool/projects/anysizebasket-com', $link->project?->burrowProjectPath);
+
+        $deepLink = $client->getLinkedProjectDeepLink();
+        $this->assertNotNull($deepLink);
+        $this->assertSame('/clients/three-m-tool/projects/anysizebasket-com', $deepLink?->path);
+        $this->assertSame(
+            'https://app.useburrow.com/clients/three-m-tool/projects/anysizebasket-com',
+            $deepLink?->url
+        );
+
+        $client->publishEvent([
+            'projectId' => 'prj_123',
+            'event' => 'forms.submission.received',
+        ]);
+
+        $this->assertSame(['x-api-key' => 'burrow_prj_key_abc'], $transport->lastHeaders);
+    }
+
+    public function testRequiresProjectIdForScopedKeyPublish(): void
+    {
+        $transport = new RecordingTransport(new HttpResponse(200, [
+            'routing' => ['projectId' => 'prj_123'],
+            'ingestionKey' => [
+                'key' => 'burrow_prj_key_abc',
+                'scope' => 'project',
+                'projectId' => 'prj_123',
+            ],
+        ], '{"ok":true}'));
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+
+        $this->expectException(InvalidArgumentException::class);
+        $client->publishEvent(['event' => 'forms.submission.received']);
+    }
+
+    public function testRejectsPublishWhenProjectIdDoesNotMatchScopedKey(): void
+    {
+        $transport = new RecordingTransport(new HttpResponse(200, [
+            'routing' => ['projectId' => 'prj_123'],
+            'ingestionKey' => [
+                'key' => 'burrow_prj_key_abc',
+                'scope' => 'project',
+                'projectId' => 'prj_123',
+            ],
+        ], '{"ok":true}'));
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+
+        $this->expectException(InvalidArgumentException::class);
+        $client->publishEvent([
+            'projectId' => 'prj_999',
+            'event' => 'forms.submission.received',
+        ]);
+    }
+
+    public function testRejectsFormsFetchWhenScopedProjectDoesNotMatch(): void
+    {
+        $transport = new RecordingTransport(new HttpResponse(200, [
+            'routing' => ['projectId' => 'prj_123'],
+            'ingestionKey' => [
+                'key' => 'burrow_prj_key_abc',
+                'scope' => 'project',
+                'projectId' => 'prj_123',
+            ],
+        ], '{"ok":true}'));
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+
+        $this->expectException(InvalidArgumentException::class);
+        $client->fetchFormsContracts('prj_999', 'wordpress');
+    }
+
+    public function testRejectsFormsSubmitWhenScopedProjectDoesNotMatch(): void
+    {
+        $transport = new RecordingTransport(new HttpResponse(200, [
+            'routing' => ['projectId' => 'prj_123'],
+            'ingestionKey' => [
+                'key' => 'burrow_prj_key_abc',
+                'scope' => 'project',
+                'projectId' => 'prj_123',
+            ],
+        ], '{"ok":true}'));
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
+        ));
+
+        $this->expectException(InvalidArgumentException::class);
+        $client->submitFormsContract(new FormsContractSubmissionRequest([
+            'platform' => 'wordpress',
+            'routing' => ['projectId' => 'prj_999'],
+            'formsContracts' => [],
+        ]));
+    }
 }
 
 final class RecordingTransport implements HttpTransportInterface
@@ -96,5 +237,41 @@ final class RecordingTransport implements HttpTransportInterface
         $this->lastPayload = $payload;
 
         return $this->response;
+    }
+}
+
+final class QueueRecordingTransport implements HttpTransportInterface
+{
+    /** @var list<HttpResponse> */
+    private array $responses;
+
+    /** @var array<string, string> */
+    public array $lastHeaders = [];
+
+    /** @var array<string, mixed> */
+    public array $lastPayload = [];
+
+    public string $lastUrl = '';
+
+    /**
+     * @param list<HttpResponse> $responses
+     */
+    public function __construct(array $responses)
+    {
+        $this->responses = $responses;
+    }
+
+    public function post(string $url, array $headers, array $payload): HttpResponse
+    {
+        $this->lastUrl = $url;
+        $this->lastHeaders = $headers;
+        $this->lastPayload = $payload;
+
+        $response = array_shift($this->responses);
+        if ($response === null) {
+            throw new \RuntimeException('No response left in queue.');
+        }
+
+        return $response;
     }
 }

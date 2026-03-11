@@ -85,10 +85,16 @@ $response = $client->discover(new OnboardingDiscoveryRequest(
 ```php
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 
-$response = $client->link(new OnboardingLinkRequest(
+$link = $client->link(new OnboardingLinkRequest(
     site: ['url' => 'https://example.com'],
     selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
 ));
+
+// SDK stores project-scoped ingestion key returned from link,
+// and uses it for subsequent plugin event/forms API calls.
+// Access project deep-link for plugin settings:
+$deepLink = $client->getLinkedProjectDeepLink();
+// $deepLink?->path, $deepLink?->url
 ```
 
 ### Onboarding: Submit Contracts
@@ -247,6 +253,8 @@ $result = $client->backfillEvents(
 Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for every backfilled record.
 Migration note for contract roundtrip: persist `projectSourceId`, `contractsVersion`, and form mapping keys
 (`externalFormId|formHandle`) so plugin forms can reconcile to canonical Burrow `contractId` on future runs.
+Migration note for key scope: after onboarding link, use the returned project-scoped ingestion key.
+When scoped key is active, SDK enforces `projectId` for events and project-matching guards for forms contracts/fetch.
 
 ### Durable Outbox + Worker Loop
 
