@@ -90,7 +90,7 @@ describe('EventEnvelopeBuilder', () => {
       organizationId: 'org_123',
       clientId: 'cli_123',
       channel: 'ecommerce',
-      event: 'ecommerce.order.placed',
+      event: 'order.placed',
       timestamp: '2026-03-09T00:00:00.000Z',
       tags: { provider: 'woocommerce' },
     });

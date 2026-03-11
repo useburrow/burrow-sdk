@@ -80,15 +80,34 @@ final class EventContractHardeningTest extends TestCase
         $order = CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent([
             'organizationId' => 'org_123',
             'orderId' => '1001',
+            'externalEntityId' => 'woo:1001',
             'orderTotal' => 120.50,
             'currency' => 'USD',
             'itemCount' => 2,
             'submittedAt' => '2026-03-09T00:00:00.000Z',
-            'tags' => ['provider' => 'woocommerce', 'status' => 'paid'],
+            'tax' => 10.25,
+            'subtotal' => 110.25,
+            'customerToken' => 'cust_tok_1',
+            'isGuest' => 'false',
+            'orderSequence' => '3',
+            'isNewCustomer' => 'false',
+            'paymentMethod' => 'stripe',
+            'shippingCountry' => 'US',
+            'shippingRegion' => 'CA',
+            'shippingMethod' => 'express',
+            'tags' => ['provider' => 'woocommerce', 'status' => 'paid', 'couponCode' => 'SPRING25'],
         ], $resolver);
         $this->assertSame('order.placed', $order['event']);
         $this->assertSame('shopping-cart', $order['icon']);
         $this->assertSame('src_ecom_123', $order['projectSourceId']);
+        $this->assertTrue($order['isLifecycle']);
+        $this->assertSame('order', $order['entityType']);
+        $this->assertSame('woo:1001', $order['externalEntityId']);
+        $this->assertSame('placed', $order['state']);
+        $this->assertSame(10.25, $order['properties']['tax']);
+        $this->assertSame(110.25, $order['properties']['subtotal']);
+        $this->assertSame('cust_tok_1', $order['tags']['customerToken']);
+        $this->assertSame('SPRING25', $order['tags']['couponCode']);
 
         $item = CanonicalEnvelopeBuilders::buildEcommerceItemPurchasedEvent([
             'organizationId' => 'org_123',
@@ -100,10 +119,63 @@ final class EventContractHardeningTest extends TestCase
             'lineTotal' => 19.99,
             'currency' => 'USD',
             'submittedAt' => '2026-03-09T00:00:00.000Z',
+            'customerToken' => 'cust_tok_1',
             'tags' => ['provider' => 'woocommerce', 'productType' => 'simple'],
         ], $resolver);
         $this->assertSame('item.purchased', $item['event']);
         $this->assertSame('shopping-cart', $item['icon']);
+        $this->assertSame('cust_tok_1', $item['tags']['customerToken']);
+
+        $fulfilled = CanonicalEnvelopeBuilders::buildEcommerceOrderFulfilledEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1001',
+            'externalEntityId' => 'woo:1001',
+            'orderTotal' => 120.50,
+            'currency' => 'USD',
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('order.fulfilled', $fulfilled['event']);
+        $this->assertTrue($fulfilled['isLifecycle']);
+        $this->assertSame('order', $fulfilled['entityType']);
+        $this->assertSame('woo:1001', $fulfilled['externalEntityId']);
+        $this->assertSame('fulfilled', $fulfilled['state']);
+        $this->assertSame('cust_tok_1', $fulfilled['tags']['customerToken']);
+
+        $refunded = CanonicalEnvelopeBuilders::buildEcommerceOrderRefundedEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1001',
+            'externalEntityId' => 'woo:1001',
+            'orderTotal' => 120.50,
+            'currency' => 'USD',
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('order.refunded', $refunded['event']);
+        $this->assertSame('refunded', $refunded['state']);
+
+        $cancelled = CanonicalEnvelopeBuilders::buildEcommerceOrderCancelledEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1001',
+            'externalEntityId' => 'woo:1001',
+            'orderTotal' => 120.50,
+            'currency' => 'USD',
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('order.cancelled', $cancelled['event']);
+        $this->assertSame('cancelled', $cancelled['state']);
+
+        $withoutCoupon = CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1002',
+            'orderTotal' => 80.00,
+            'currency' => 'USD',
+            'itemCount' => 1,
+            'submittedAt' => '2026-03-10T00:00:00.000Z',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertArrayNotHasKey('couponCode', $withoutCoupon['tags']);
     }
 
     public function testBackfillUsesCanonicalNamesAndChannelSourceIds(): void

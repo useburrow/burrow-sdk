@@ -4,8 +4,12 @@ import { resolveIconForEvent } from '../src/events/EventIconResolver.js';
 describe('resolveIconForEvent', () => {
   it('returns canonical lucide icon for known event mapping', () => {
     expect(resolveIconForEvent('forms', 'forms.submission.received')).toBe('file-signature');
-    expect(resolveIconForEvent('system', 'system.heartbeat.ping')).toBe('heart-pulse');
-    expect(resolveIconForEvent('ecommerce', 'ecommerce.order.placed')).toBe('shopping-cart');
+    expect(resolveIconForEvent('system', 'heartbeat.ping')).toBe('heart-pulse');
+    expect(resolveIconForEvent('ecommerce', 'order.placed')).toBe('shopping-cart');
+    expect(resolveIconForEvent('ecommerce', 'order.cancelled')).toBe('circle-x');
+    expect(resolveIconForEvent('ecommerce', 'order.fulfilled')).toBe('badge-check');
+    expect(resolveIconForEvent('ecommerce', 'order.refunded')).toBe('rotate-ccw');
+    expect(resolveIconForEvent('ecommerce', 'item.purchased')).toBe('package');
   });
 
   it('falls back to channel default when event is unknown', () => {

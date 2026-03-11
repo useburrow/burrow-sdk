@@ -67,8 +67,8 @@ final class ContractFixturesTest extends TestCase
         return [
             ['event-system-stack-snapshot.json', 'system.stack.snapshot'],
             ['event-system-heartbeat-ping.json', 'system.heartbeat.ping'],
-            ['event-ecommerce-order-placed.json', 'ecommerce.order.placed'],
-            ['event-ecommerce-item-purchased.json', 'ecommerce.item.purchased'],
+            ['event-ecommerce-order-placed.json', 'order.placed'],
+            ['event-ecommerce-item-purchased.json', 'item.purchased'],
         ];
     }
 }

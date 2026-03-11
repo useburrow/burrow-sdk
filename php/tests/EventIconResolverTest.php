@@ -13,8 +13,11 @@ final class EventIconResolverTest extends TestCase
     {
         $this->assertSame('file-signature', EventIconResolver::resolveIconForEvent('forms', 'forms.submission.received'));
         $this->assertSame('heart', EventIconResolver::resolveIconForEvent('system', 'heartbeat.ping'));
-        $this->assertSame('shopping-cart', EventIconResolver::resolveIconForEvent('ecommerce', 'ecommerce.order.placed'));
-        $this->assertSame('shopping-cart', EventIconResolver::resolveIconForEvent('ecommerce', 'item.purchased'));
+        $this->assertSame('shopping-cart', EventIconResolver::resolveIconForEvent('ecommerce', 'order.placed'));
+        $this->assertSame('circle-x', EventIconResolver::resolveIconForEvent('ecommerce', 'order.cancelled'));
+        $this->assertSame('badge-check', EventIconResolver::resolveIconForEvent('ecommerce', 'order.fulfilled'));
+        $this->assertSame('rotate-ccw', EventIconResolver::resolveIconForEvent('ecommerce', 'order.refunded'));
+        $this->assertSame('package', EventIconResolver::resolveIconForEvent('ecommerce', 'item.purchased'));
     }
 
     public function testFallsBackToChannelDefaultForUnknownEvent(): void

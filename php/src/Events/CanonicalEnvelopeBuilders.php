@@ -82,6 +82,20 @@ final class CanonicalEnvelopeBuilders
         }
 
         $resolved = $routing->getRoutingForChannel('ecommerce');
+        $properties = [
+            'orderId' => $input['orderId'],
+            'orderTotal' => $input['orderTotal'] ?? $input['total'],
+            'currency' => $input['currency'],
+            'itemCount' => $input['itemCount'],
+            'submittedAt' => $input['submittedAt'],
+        ];
+        if (isset($input['tax']) && is_numeric($input['tax'])) {
+            $properties['tax'] = $input['tax'];
+        }
+        if (isset($input['subtotal']) && is_numeric($input['subtotal'])) {
+            $properties['subtotal'] = $input['subtotal'];
+        }
+
         return EventEnvelopeBuilder::build([
             'organizationId' => $input['organizationId'] ?? null,
             'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
@@ -91,14 +105,23 @@ final class CanonicalEnvelopeBuilders
             'event' => 'order.placed',
             'timestamp' => $input['timestamp'] ?? gmdate('c'),
             'icon' => 'shopping-cart',
-            'properties' => [
-                'orderId' => $input['orderId'],
-                'orderTotal' => $input['orderTotal'] ?? $input['total'],
-                'currency' => $input['currency'],
-                'itemCount' => $input['itemCount'],
-                'submittedAt' => $input['submittedAt'],
-            ],
-            'tags' => is_array($input['tags'] ?? null) ? $input['tags'] : [],
+            'properties' => $properties,
+            'tags' => self::buildStringTags($input, [
+                'provider',
+                'currency',
+                'customerToken',
+                'isGuest',
+                'orderSequence',
+                'isNewCustomer',
+                'paymentMethod',
+                'shippingCountry',
+                'shippingRegion',
+                'shippingMethod',
+            ], true),
+            'isLifecycle' => true,
+            'entityType' => 'order',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'placed',
         ], ['strictNames' => true]);
     }
 
@@ -131,7 +154,118 @@ final class CanonicalEnvelopeBuilders
                 'currency' => $input['currency'],
                 'submittedAt' => $input['submittedAt'],
             ],
-            'tags' => is_array($input['tags'] ?? null) ? $input['tags'] : [],
+            'tags' => self::buildStringTags($input, ['provider', 'customerToken'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceOrderFulfilledEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['orderId', 'currency']);
+        if (!isset($input['orderTotal']) && !isset($input['total'])) {
+            throw new EventContractException(
+                errorCode: 'MISSING_REQUIRED_PROPERTY',
+                message: 'orderTotal or total is required for order.fulfilled.'
+            );
+        }
+
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'order.fulfilled',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'shopping-cart',
+            'properties' => [
+                'orderId' => $input['orderId'],
+                'orderTotal' => $input['orderTotal'] ?? $input['total'],
+                'currency' => $input['currency'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+            'isLifecycle' => true,
+            'entityType' => 'order',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'fulfilled',
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceOrderRefundedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['orderId', 'currency']);
+        if (!isset($input['orderTotal']) && !isset($input['total'])) {
+            throw new EventContractException(
+                errorCode: 'MISSING_REQUIRED_PROPERTY',
+                message: 'orderTotal or total is required for order.refunded.'
+            );
+        }
+
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'order.refunded',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'shopping-cart',
+            'properties' => [
+                'orderId' => $input['orderId'],
+                'orderTotal' => $input['orderTotal'] ?? $input['total'],
+                'currency' => $input['currency'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+            'isLifecycle' => true,
+            'entityType' => 'order',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'refunded',
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommerceOrderCancelledEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['orderId', 'currency']);
+        if (!isset($input['orderTotal']) && !isset($input['total'])) {
+            throw new EventContractException(
+                errorCode: 'MISSING_REQUIRED_PROPERTY',
+                message: 'orderTotal or total is required for order.cancelled.'
+            );
+        }
+
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'order.cancelled',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'shopping-cart',
+            'properties' => [
+                'orderId' => $input['orderId'],
+                'orderTotal' => $input['orderTotal'] ?? $input['total'],
+                'currency' => $input['currency'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+            'isLifecycle' => true,
+            'entityType' => 'order',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'cancelled',
         ], ['strictNames' => true]);
     }
 
@@ -185,5 +319,49 @@ final class CanonicalEnvelopeBuilders
                 throw new EventContractException('MISSING_REQUIRED_PROPERTY', sprintf('Missing required numeric "%s".', $key));
             }
         }
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @param list<string> $derivedKeys
+     * @return array<string,string>
+     */
+    private static function buildStringTags(array $input, array $derivedKeys, bool $includeInputTags): array
+    {
+        $tags = [];
+        if ($includeInputTags && is_array($input['tags'] ?? null)) {
+            foreach ($input['tags'] as $key => $value) {
+                if (is_string($key) && is_string($value) && trim($value) !== '') {
+                    $tags[$key] = trim($value);
+                }
+            }
+        }
+
+        foreach ($derivedKeys as $key) {
+            $value = self::readOptionalString($input, $key);
+            if ($value !== null) {
+                $tags[$key] = $value;
+            }
+        }
+
+        $couponCode = self::readOptionalString($input, 'couponCode');
+        if ($couponCode !== null) {
+            $tags['couponCode'] = $couponCode;
+        }
+
+        return $tags;
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     */
+    private static function readOptionalString(array $input, string $key): ?string
+    {
+        $value = $input[$key] ?? null;
+        if (!is_string($value)) {
+            return null;
+        }
+        $trimmed = trim($value);
+        return $trimmed === '' ? null : $trimmed;
     }
 }

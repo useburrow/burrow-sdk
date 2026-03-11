@@ -18,6 +18,7 @@ final class CanonicalEventName
     private const ECOMMERCE_EVENTS = [
         'order.placed',
         'item.purchased',
+        'order.cancelled',
         'order.fulfilled',
         'order.refunded',
     ];

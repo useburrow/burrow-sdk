@@ -103,8 +103,8 @@ If `icon` is provided, explicit override is preserved.
 Example defaults:
 
 - `forms.submission.received` -> `file-signature`
-- `ecommerce.order.placed` -> `shopping-cart`
-- `ecommerce.item.purchased` -> `package`
+- `order.placed` -> `shopping-cart` (for `channel: "ecommerce"`)
+- `item.purchased` -> `package` (for `channel: "ecommerce"`)
 - `system.stack.snapshot` -> `layers`
 - `system.heartbeat.ping` -> `heart-pulse`
 
@@ -120,7 +120,7 @@ Choose Lucide icon names from https://lucide.dev/icons and send the icon key str
 `EventEnvelopeBuilder` resolves `source` in this order:
 
 1. explicit `source` override
-2. provider-specific source for `forms.*`/`ecommerce.*` events when provider is known
+2. provider-specific source for forms/ecommerce events when provider is known
 3. platform fallback (`wordpress-plugin` by default, `craft-plugin` when platform is `craft`)
 
 Source values follow Burrow slug conventions: lowercase and hyphenated.

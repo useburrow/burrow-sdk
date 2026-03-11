@@ -47,8 +47,8 @@ describe('spec/contracts fixture alignment', () => {
       { name: 'event-forms-submission.json', event: 'forms.submission.received' },
       { name: 'event-system-stack-snapshot.json', event: 'system.stack.snapshot' },
       { name: 'event-system-heartbeat-ping.json', event: 'system.heartbeat.ping' },
-      { name: 'event-ecommerce-order-placed.json', event: 'ecommerce.order.placed' },
-      { name: 'event-ecommerce-item-purchased.json', event: 'ecommerce.item.purchased' },
+      { name: 'event-ecommerce-order-placed.json', event: 'order.placed' },
+      { name: 'event-ecommerce-item-purchased.json', event: 'item.purchased' },
     ];
 
     for (const fixture of fixtures) {

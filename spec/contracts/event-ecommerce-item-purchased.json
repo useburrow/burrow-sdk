@@ -4,7 +4,7 @@
   "projectId": "prj_123",
   "projectSourceId": "psrc_ecommerce_123",
   "channel": "ecommerce",
-  "event": "ecommerce.item.purchased",
+  "event": "item.purchased",
   "timestamp": "2026-03-09T11:03:10.000Z",
   "source": "woocommerce-plugin",
   "description": "Individual line item purchased in completed checkout flow",
