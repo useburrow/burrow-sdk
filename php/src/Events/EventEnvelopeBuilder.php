@@ -10,9 +10,10 @@ final class EventEnvelopeBuilder
 {
     /**
      * @param array<string,mixed> $event
+     * @param array{strictNames?:bool} $options
      * @return array<string,mixed>
      */
-    public static function build(array $event): array
+    public static function build(array $event, array $options = []): array
     {
         $required = ['organizationId', 'clientId', 'channel', 'event', 'timestamp'];
         foreach ($required as $field) {
@@ -21,6 +22,10 @@ final class EventEnvelopeBuilder
             }
         }
 
+        $strictNames = (bool) ($options['strictNames'] ?? false);
+        $channel = (string) $event['channel'];
+        $canonicalEventName = CanonicalEventName::normalize($channel, (string) $event['event'], $strictNames);
+
         return [
             'organizationId' => (string) $event['organizationId'],
             'clientId' => (string) $event['clientId'],
@@ -28,8 +33,8 @@ final class EventEnvelopeBuilder
             'integrationId' => $event['integrationId'] ?? null,
             'projectSourceId' => $event['projectSourceId'] ?? null,
             'clientSourceId' => $event['clientSourceId'] ?? null,
-            'channel' => (string) $event['channel'],
-            'event' => (string) $event['event'],
+            'channel' => $channel,
+            'event' => $canonicalEventName,
             'timestamp' => (string) $event['timestamp'],
             'source' => isset($event['source']) && trim((string) $event['source']) !== ''
                 ? (string) $event['source']
@@ -37,7 +42,7 @@ final class EventEnvelopeBuilder
             'description' => isset($event['description']) ? (string) $event['description'] : null,
             'icon' => isset($event['icon'])
                 ? (string) $event['icon']
-                : EventIconResolver::resolveIconForEvent((string) $event['channel'], (string) $event['event']),
+                : EventIconResolver::resolveIconForEvent($channel, $canonicalEventName),
             'schemaVersion' => (string) ($event['schemaVersion'] ?? '1'),
             'isLifecycle' => (bool) ($event['isLifecycle'] ?? false),
             'entityType' => isset($event['entityType']) ? (string) $event['entityType'] : null,

@@ -17,6 +17,8 @@ use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkResponse;
+use Burrow\Sdk\Events\EventEnvelopeBuilder;
+use Burrow\Sdk\Events\Exception\EventContractException;
 use Burrow\Sdk\Transport\ApiKeyAuthHeaderProvider;
 use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
 use Burrow\Sdk\Transport\HttpResponse;
@@ -169,8 +171,10 @@ final class BurrowClient implements BurrowClientInterface
 
     public function publishEvent(array $event): HttpResponse
     {
-        $this->assertScopedProjectAllowedForEvent($event);
-        return $this->post('/api/v1/events', $event);
+        $normalizedEvent = EventEnvelopeBuilder::build($event, ['strictNames' => true]);
+        $this->assertChannelProjectSourceId($normalizedEvent);
+        $this->assertScopedProjectAllowedForEvent($normalizedEvent);
+        return $this->post('/api/v1/events', $normalizedEvent);
     }
 
     public function backfillEvents(
@@ -457,7 +461,23 @@ final class BurrowClient implements BurrowClientInterface
             }
 
             $event['timestamp'] = $normalizedTimestamp;
-            $validEvents[] = $event;
+            $channel = strtolower(trim((string) ($event['channel'] ?? '')));
+            if (!in_array($channel, ['system', 'ecommerce'], true)) {
+                $validEvents[] = $event;
+                continue;
+            }
+
+            try {
+                $normalizedEvent = EventEnvelopeBuilder::build($event, ['strictNames' => true]);
+                $this->assertChannelProjectSourceId($normalizedEvent);
+                $validEvents[] = $normalizedEvent;
+            } catch (EventContractException|\InvalidArgumentException $exception) {
+                $validationRejections[] = [
+                    'index' => $index,
+                    'reason' => 'invalid_contract',
+                    'message' => $exception->getMessage(),
+                ];
+            }
         }
 
         return [
@@ -789,5 +809,32 @@ final class BurrowClient implements BurrowClientInterface
         }
 
         return trim($projectId);
+    }
+
+    /**
+     * @param array<string,mixed> $event
+     */
+    private function assertChannelProjectSourceId(array $event): void
+    {
+        $channel = strtolower(trim((string) ($event['channel'] ?? '')));
+        if (!in_array($channel, ['system', 'ecommerce', 'forms'], true)) {
+            return;
+        }
+
+        $projectId = trim((string) ($event['projectId'] ?? ''));
+        if ($projectId === '') {
+            throw new EventContractException(
+                errorCode: 'MISSING_PROJECT_ID',
+                message: 'projectId is required for Burrow event envelopes.'
+            );
+        }
+
+        $projectSourceId = trim((string) ($event['projectSourceId'] ?? ''));
+        if ($projectSourceId === '') {
+            throw new EventContractException(
+                errorCode: 'MISSING_PROJECT_SOURCE_ID_FOR_CHANNEL',
+                message: sprintf('projectSourceId is required for channel "%s".', $channel)
+            );
+        }
     }
 }

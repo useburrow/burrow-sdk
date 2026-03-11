@@ -11,10 +11,14 @@ final class EventIconResolver
      */
     private const EVENT_ICON_MAP = [
         'forms.submission.received' => 'file-signature',
+        'order.placed' => 'shopping-cart',
+        'item.purchased' => 'shopping-cart',
+        'stack.snapshot' => 'layers',
+        'heartbeat.ping' => 'heart',
         'ecommerce.order.placed' => 'shopping-cart',
-        'ecommerce.item.purchased' => 'package',
+        'ecommerce.item.purchased' => 'shopping-cart',
         'system.stack.snapshot' => 'layers',
-        'system.heartbeat.ping' => 'heart-pulse',
+        'system.heartbeat.ping' => 'heart',
         'code.commit.pushed' => 'git-commit-horizontal',
         'analytics.stats.daily' => 'chart-column',
         'monitoring.incident.started' => 'triangle-alert',

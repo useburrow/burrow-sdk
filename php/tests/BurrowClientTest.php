@@ -53,11 +53,24 @@ final class BurrowClientTest extends TestCase
         $client->fetchFormsContracts('prj_123', 'craft');
         $this->assertSame('https://api.example.com/api/v1/plugin-onboarding/forms/contracts/fetch', $transport->lastUrl);
 
-        $client->publishEvent(['event' => 'forms.submission.received']);
+        $client->publishEvent([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'projectId' => 'prj_123',
+            'projectSourceId' => 'src_forms_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-01T00:00:00.000Z',
+        ]);
         $this->assertSame('https://api.example.com/api/v1/events', $transport->lastUrl);
 
         $client->backfillEvents(new BackfillEventsRequest(
             events: [[
+                'organizationId' => 'org_123',
+                'clientId' => 'client_123',
+                'projectId' => 'prj_123',
+                'projectSourceId' => 'src_forms_123',
+                'channel' => 'forms',
                 'event' => 'forms.submission.received',
                 'timestamp' => '2026-03-01T12:00:00.000Z',
             ]],
@@ -72,7 +85,15 @@ final class BurrowClientTest extends TestCase
         $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
 
         $this->expectException(SdkApiException::class);
-        $client->publishEvent(['event' => 'forms.submission.received']);
+        $client->publishEvent([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'projectId' => 'prj_123',
+            'projectSourceId' => 'src_forms_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-01T00:00:00.000Z',
+        ]);
     }
 
     public function testParsesLinkResponseDeepLinkAndUsesScopedIngestionKeyForEvents(): void
@@ -122,7 +143,12 @@ final class BurrowClientTest extends TestCase
 
         $client->publishEvent([
             'projectId' => 'prj_123',
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'projectSourceId' => 'src_forms_123',
+            'channel' => 'forms',
             'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-01T00:00:00.000Z',
         ]);
 
         $this->assertSame(['x-api-key' => 'burrow_prj_key_abc'], $transport->lastHeaders);
@@ -167,7 +193,12 @@ final class BurrowClientTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $client->publishEvent([
             'projectId' => 'prj_999',
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'projectSourceId' => 'src_forms_123',
+            'channel' => 'forms',
             'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-01T00:00:00.000Z',
         ]);
     }
 

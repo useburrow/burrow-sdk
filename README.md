@@ -161,6 +161,16 @@ $event = EventEnvelopeBuilder::build([
 $response = $client->publishEvent($event);
 ```
 
+Prefer SDK canonical builders for system/ecommerce payloads so plugins do not drift from Burrow contract shape:
+
+- `CanonicalEnvelopeBuilders::buildSystemStackSnapshotEvent(...)`
+- `CanonicalEnvelopeBuilders::buildSystemHeartbeatEvent(...)`
+- `CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent(...)`
+- `CanonicalEnvelopeBuilders::buildEcommerceItemPurchasedEvent(...)`
+
+Migration note for plugin agents: replace hand-rolled envelope arrays with canonical builders + `publishEvent`/`backfillEvents`.
+For system/ecommerce events, canonical event names are unprefixed (for example `stack.snapshot`, `order.placed`).
+
 The normalized event envelope supports lifecycle metadata fields in addition to core routing/event fields:
 
 - `integrationId`, `projectSourceId`, `clientSourceId`

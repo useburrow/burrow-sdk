@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `getLinkedProjectDeepLink()` helper for plugin settings UIs.
 - Added TypeScript onboarding link response models for project-scoped ingestion key metadata and linked project deep-links.
 - Added TypeScript `getLinkedProjectDeepLink()` helper and forms contracts fetch response parsing.
+- Added PHP canonical contract hardening primitives for system/ecommerce/forms:
+  - canonical event name normalizer (`CanonicalEventName`)
+  - channel routing resolver/state (`ChannelRoutingResolver`, `ChannelRoutingState`)
+  - authoritative system/ecommerce builders (`CanonicalEnvelopeBuilders`)
+  - typed contract errors (`EventContractException`) and retryability helper (`SdkErrorHelper`)
 
 ### Changed
 
@@ -37,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed TypeScript link flow to store and use project-scoped ingestion key returned from onboarding link.
 - Changed TypeScript event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
 - Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
+- Changed PHP submit/backfill preflight to enforce canonical names and channel project source IDs before HTTP submission.
 
 ## [0.2.0] - 2026-03-09
 
