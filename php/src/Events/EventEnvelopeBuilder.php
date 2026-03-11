@@ -31,7 +31,9 @@ final class EventEnvelopeBuilder
             'channel' => (string) $event['channel'],
             'event' => (string) $event['event'],
             'timestamp' => (string) $event['timestamp'],
-            'source' => isset($event['source']) ? (string) $event['source'] : null,
+            'source' => isset($event['source']) && trim((string) $event['source']) !== ''
+                ? (string) $event['source']
+                : EventSourceResolver::resolveSourceForEvent($event),
             'description' => isset($event['description']) ? (string) $event['description'] : null,
             'icon' => isset($event['icon'])
                 ? (string) $event['icon']

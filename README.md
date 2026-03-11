@@ -161,6 +161,11 @@ The normalized event envelope supports lifecycle metadata fields in addition to 
 - `icon`, `isLifecycle`, `entityType`
 - `externalEntityId`, `externalEventId`, `state`, `stateChangedAt`
 
+`source` now captures the actual origin provider for forms/ecommerce when available
+(for example `gravity-forms`, `fluent-forms`, `woocommerce`, `craft-commerce`)
+instead of always using a generic platform label.
+System events keep platform-level source defaults unless explicitly overridden.
+
 Unset optional fields are normalized to `null`, with defaults:
 
 - `schemaVersion: "1"`
@@ -187,6 +192,16 @@ Override guidance:
 - optional plugin-level event->icon override map
 
 Use Lucide icon key strings from: https://lucide.dev/icons
+
+### Source Mapping Behavior (Provider Origin)
+
+`EventEnvelopeBuilder` auto-resolves `source` with this precedence:
+
+1. explicit `source` input (override wins)
+2. provider-specific source for `forms.*` / `ecommerce.*` events when provider is known
+3. platform fallback (`wordpress-plugin` by default, `craft-plugin` when platform is `craft`)
+
+Provider source values use Burrow slug conventions: lowercase and hyphenated.
 
 ### Backfill Events (Run After Final Contract Setup)
 

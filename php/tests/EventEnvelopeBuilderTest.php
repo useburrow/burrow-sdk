@@ -27,6 +27,7 @@ final class EventEnvelopeBuilderTest extends TestCase
         $this->assertNull($event['integrationId']);
         $this->assertNull($event['clientSourceId']);
         $this->assertSame('file-signature', $event['icon']);
+        $this->assertSame('wordpress-plugin', $event['source']);
         $this->assertNull($event['entityType']);
         $this->assertNull($event['externalEntityId']);
         $this->assertNull($event['externalEventId']);
@@ -98,6 +99,72 @@ final class EventEnvelopeBuilderTest extends TestCase
         ]);
 
         $this->assertSame('star', $event['icon']);
+    }
+
+    public function testResolvesProviderSpecificSourceForFormsEvent(): void
+    {
+        $event = EventEnvelopeBuilder::build([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-07T00:00:00.000Z',
+            'properties' => [
+                'provider' => 'gravityforms',
+            ],
+        ]);
+
+        $this->assertSame('gravity-forms', $event['source']);
+    }
+
+    public function testResolvesProviderSpecificSourceForEcommerceEvent(): void
+    {
+        $event = EventEnvelopeBuilder::build([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'channel' => 'ecommerce',
+            'event' => 'ecommerce.order.placed',
+            'timestamp' => '2026-03-07T00:00:00.000Z',
+            'tags' => [
+                'provider' => 'woocommerce',
+            ],
+        ]);
+
+        $this->assertSame('woocommerce', $event['source']);
+    }
+
+    public function testFallsBackToPlatformSourceWhenProviderUnknown(): void
+    {
+        $event = EventEnvelopeBuilder::build([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-07T00:00:00.000Z',
+            'platform' => 'craft',
+            'properties' => [
+                'provider' => 'custom-form-plugin',
+            ],
+        ]);
+
+        $this->assertSame('craft-plugin', $event['source']);
+    }
+
+    public function testPreservesExplicitSourceOverride(): void
+    {
+        $event = EventEnvelopeBuilder::build([
+            'organizationId' => 'org_123',
+            'clientId' => 'client_123',
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => '2026-03-07T00:00:00.000Z',
+            'source' => 'explicit-source',
+            'properties' => [
+                'provider' => 'gravityforms',
+            ],
+        ]);
+
+        $this->assertSame('explicit-source', $event['source']);
     }
 
     public function testBuildsExpectedEnvelopeFromFixture(): void
