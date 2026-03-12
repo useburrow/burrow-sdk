@@ -25,6 +25,7 @@ export interface OutboxWorkerOptions {
   batchSize?: number;
   backoffStrategy?: BackoffStrategy;
   logger?: (entry: OutboxLogEntry) => void;
+  skipNetworkSend?: boolean;
 }
 
 export class OutboxWorker {
@@ -32,6 +33,7 @@ export class OutboxWorker {
   private readonly batchSize: number;
   private readonly backoffStrategy: BackoffStrategy;
   private readonly logger?: (entry: OutboxLogEntry) => void;
+  private readonly skipNetworkSend: boolean;
 
   constructor(
     private readonly store: OutboxStore,
@@ -42,6 +44,7 @@ export class OutboxWorker {
     this.batchSize = options.batchSize ?? 50;
     this.backoffStrategy = options.backoffStrategy ?? createExponentialBackoffStrategy();
     this.logger = options.logger;
+    this.skipNetworkSend = options.skipNetworkSend ?? false;
   }
 
   async runOnce(limit = this.batchSize): Promise<OutboxWorkerResult> {
@@ -54,6 +57,21 @@ export class OutboxWorker {
     };
 
     for (const record of records) {
+      if (this.skipNetworkSend) {
+        await this.store.markSent(record.id);
+        this.logger?.({
+          eventKey: record.eventKey,
+          eventKeyShort: shortenEventKey(record.eventKey),
+          fromStatus: record.status,
+          toStatus: 'sent',
+          attemptCount: record.attemptCount + 1,
+          message: 'Skipped network publish (skipNetworkSend enabled).',
+          retryable: false,
+        });
+        result.sentCount += 1;
+        continue;
+      }
+
       try {
         const response = await this.client.publishEvent(record.payload);
         if (response.status === 200 || response.status === 207) {

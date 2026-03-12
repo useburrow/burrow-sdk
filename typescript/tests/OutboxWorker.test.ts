@@ -95,4 +95,23 @@ describe('OutboxWorker', () => {
     expect(updated?.status).toBe('failed');
     expect(updated?.attemptCount).toBe(1);
   });
+
+  it('marks sent without publishing when skipNetworkSend enabled', async () => {
+    const store = new InMemoryOutboxStore();
+    const record = store.enqueue('event_1', { event: 'forms.submission.received' }).record!;
+    const worker = new OutboxWorker(
+      store,
+      createClient([new Error('should not be called')]),
+      { skipNetworkSend: true }
+    );
+
+    const result = await worker.runOnce();
+    const updated = store.getById(record.id);
+
+    expect(result.sentCount).toBe(1);
+    expect(result.retryingCount).toBe(0);
+    expect(result.failedCount).toBe(0);
+    expect(updated?.status).toBe('sent');
+    expect(updated?.attemptCount).toBe(1);
+  });
 });

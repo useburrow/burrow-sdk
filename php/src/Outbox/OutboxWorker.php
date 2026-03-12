@@ -17,7 +17,8 @@ final class OutboxWorker
         private readonly BurrowClientInterface $client,
         private readonly int $maxAttempts = 5,
         private readonly BackoffStrategyInterface $backoffStrategy = new ExponentialBackoffStrategy(),
-        private readonly ?\Closure $logger = null
+        private readonly ?\Closure $logger = null,
+        private readonly bool $skipNetworkSend = false
     ) {
     }
 
@@ -29,6 +30,19 @@ final class OutboxWorker
         $failedCount = 0;
 
         foreach ($records as $record) {
+            if ($this->skipNetworkSend) {
+                $this->store->markSent($record->id);
+                $this->logTransition(
+                    $record,
+                    OutboxStatus::SENT,
+                    'Skipped network publish (skipNetworkSend enabled).',
+                    null,
+                    false
+                );
+                $sentCount++;
+                continue;
+            }
+
             try {
                 $this->client->publishEvent($record->payload);
                 $this->store->markSent($record->id);

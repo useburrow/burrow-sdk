@@ -102,6 +102,27 @@ final class OutboxWorkerTest extends TestCase
         $this->assertSame(1, $updated->attemptCount);
     }
 
+    public function testMarksSentWithoutPublishingWhenSkipNetworkSendEnabled(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
+        $worker = new OutboxWorker(
+            $store,
+            new SequenceClient([new RuntimeException('publish should be skipped')]),
+            skipNetworkSend: true
+        );
+
+        $result = $worker->runOnce();
+        $updated = $this->readRecord($store, $record->id);
+
+        $this->assertSame(1, $result->sentCount);
+        $this->assertSame(0, $result->retryingCount);
+        $this->assertSame(0, $result->failedCount);
+        $this->assertSame(OutboxStatus::SENT, $updated->status);
+        $this->assertSame(1, $updated->attemptCount);
+    }
+
     private function readRecord(InMemoryOutboxStore $store, string $id): object
     {
         $reflection = new \ReflectionClass($store);

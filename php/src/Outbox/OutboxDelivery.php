@@ -14,13 +14,15 @@ final class OutboxDelivery
         private readonly OutboxStoreInterface $store,
         BurrowClientInterface $client,
         int $maxAttempts = 5,
-        ?BackoffStrategyInterface $backoffStrategy = null
+        ?BackoffStrategyInterface $backoffStrategy = null,
+        bool $skipNetworkSend = false
     ) {
         $this->worker = new OutboxWorker(
             store: $store,
             client: $client,
             maxAttempts: $maxAttempts,
-            backoffStrategy: $backoffStrategy ?? new ExponentialBackoffStrategy()
+            backoffStrategy: $backoffStrategy ?? new ExponentialBackoffStrategy(),
+            skipNetworkSend: $skipNetworkSend
         );
     }
 
