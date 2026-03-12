@@ -90,6 +90,37 @@ describe('BurrowClient', () => {
     expect(transport.lastUrl).toBe('https://api.example.com/api/v1/plugin-backfill/events');
   });
 
+  it('supports optional platform and capabilities for link', async () => {
+    const transport = new RecordingTransport({ status: 200, body: { ok: true }, raw: '{"ok":true}' });
+    const client = new BurrowClient({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'secret_key',
+      transport,
+    });
+
+    await client.link({
+      site: { url: 'https://example.com' },
+      selection: { organizationId: 'org_123', projectId: 'prj_123' },
+      platform: 'wordpress',
+      capabilities: {
+        forms: ['gravity-forms'],
+        ecommerce: ['woocommerce'],
+        system: true,
+      },
+    });
+
+    expect(transport.lastPayload).toEqual({
+      site: { url: 'https://example.com' },
+      selection: { organizationId: 'org_123', projectId: 'prj_123' },
+      platform: 'wordpress',
+      capabilities: {
+        forms: ['gravity-forms'],
+        ecommerce: ['woocommerce'],
+        system: true,
+      },
+    });
+  });
+
   it('throws SdkApiError when publish receives non-accepted status', async () => {
     const transport = new RecordingTransport({
       status: 400,

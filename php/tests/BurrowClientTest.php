@@ -79,6 +79,27 @@ final class BurrowClientTest extends TestCase
         $this->assertSame('https://api.example.com/api/v1/plugin-backfill/events', $transport->lastUrl);
     }
 
+    public function testLinkSupportsOptionalPlatformAndCapabilities(): void
+    {
+        $transport = new RecordingTransport(new HttpResponse(200, ['ok' => true], '{"ok":true}'));
+        $client = new BurrowClient('https://api.example.com', 'secret_key', $transport);
+
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://site.test'],
+            selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123'],
+            platform: 'wordpress',
+            capabilities: [
+                'forms' => ['gravity-forms'],
+                'ecommerce' => ['woocommerce'],
+                'system' => true,
+            ]
+        ));
+
+        $this->assertSame('https://api.example.com/api/v1/plugin-onboarding/link', $transport->lastUrl);
+        $this->assertSame('wordpress', $transport->lastPayload['platform'] ?? null);
+        $this->assertSame(['gravity-forms'], $transport->lastPayload['capabilities']['forms'] ?? null);
+    }
+
     public function testThrowsOnUnexpectedStatusCode(): void
     {
         $transport = new RecordingTransport(new HttpResponse(400, ['error' => 'bad request'], '{"error":"bad request"}'));
