@@ -2,6 +2,30 @@
 
 Framework-agnostic TypeScript/Node SDK for Burrow plugin integrations.
 
+## What Burrow Does
+
+Burrow helps plugin teams (WordPress, Craft, and beyond) convert plugin activity
+into reliable, canonical signals that support onboarding workflows, automation,
+and product analytics.
+
+Burrow integrations typically need to:
+
+- discover and link account/project context during onboarding
+- publish normalized forms, ecommerce, and system events
+- run historical backfill with source timestamps preserved
+- enforce project-scoped routing and ingestion-key safety
+- deliver events durably through retry and outbox patterns
+
+This SDK centralizes those concerns so plugin code can stay focused on host-CMS
+implementation details.
+
+## Why Use This SDK
+
+- typed API client for onboarding, contracts, events, and backfill
+- canonical envelope builders and source/icon resolution helpers
+- normalized SDK error model with retryability classification
+- in-memory and SQL outbox primitives for resilient delivery
+
 ## Install
 
 ```bash
@@ -19,13 +43,21 @@ npm run build
 
 ## Usage
 
+### Typical Plugin Flow
+
+1. Discover and link the installation to a Burrow project.
+2. Submit and reconcile forms contracts.
+3. Publish canonical events as plugin activity occurs.
+4. Run historical backfill after onboarding contract setup is complete.
+5. Use outbox + retries for idempotent and reliable event delivery.
+
 ### Initialize Client
 
 ```ts
 import { BurrowClient, FetchTransport } from '@useburrow/sdk-typescript';
 
 const client = new BurrowClient({
-  baseUrl: 'https://api.useburrow.com',
+  baseUrl: 'https://app.useburrow.com',
   apiKey: process.env.BURROW_API_KEY ?? '',
   transport: new FetchTransport({
     timeoutMs: 8_000,

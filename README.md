@@ -63,7 +63,7 @@ $transport = new CurlHttpTransport(
 );
 
 $client = new BurrowClient(
-    baseUrl: 'https://api.useburrow.com',
+    baseUrl: 'https://app.useburrow.com',
     apiKey: 'your-plugin-api-key',
     transport: $transport
 );
