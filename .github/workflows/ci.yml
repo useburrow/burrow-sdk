@@ -12,7 +12,7 @@ jobs:
       run:
         working-directory: php
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
@@ -28,10 +28,10 @@ jobs:
       run:
         working-directory: typescript
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: typescript/package-lock.json
       - name: Install dependencies
