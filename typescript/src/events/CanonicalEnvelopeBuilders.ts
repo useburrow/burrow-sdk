@@ -1,7 +1,8 @@
 import { EventEnvelopeBuilder } from './EventEnvelopeBuilder.js';
 import type { ChannelRoutingResolver } from './ChannelRoutingResolver.js';
+import type { JsonObject, JsonValue } from '../client/types.js';
 
-type EventInput = Record<string, unknown>;
+type EventInput = Record<string, JsonValue>;
 
 export interface EcommerceCartItemAddedInput extends EventInput {}
 export interface EcommerceCartItemRemovedInput extends EventInput {}
@@ -18,7 +19,7 @@ export class CanonicalEnvelopeBuilders {
     }
 
     const resolved = routing.getRoutingForChannel('ecommerce');
-    const properties: Record<string, unknown> = {
+    const properties: JsonObject = {
       orderId: input.orderId,
       orderTotal: input.orderTotal ?? input.total,
       currency: input.currency,
@@ -278,7 +279,8 @@ function assertRequiredStringKeys(input: EventInput, keys: string[]) {
 
 function assertRequiredNumericKeys(input: EventInput, keys: string[]) {
   for (const key of keys) {
-    if (typeof input[key] !== 'number' || Number.isNaN(input[key])) {
+    const value = input[key];
+    if (typeof value !== 'number' || Number.isNaN(value)) {
       throw new Error(`Missing required numeric "${key}".`);
     }
   }
@@ -310,7 +312,7 @@ function buildStringTags(input: EventInput, keys: string[]): Record<string, stri
   return tags;
 }
 
-function optionalString(value: unknown): string | null {
+function optionalString(value: JsonValue | undefined): string | null {
   if (typeof value !== 'string') {
     return null;
   }
@@ -318,11 +320,11 @@ function optionalString(value: unknown): string | null {
   return trimmed === '' ? null : trimmed;
 }
 
-function stringOrNow(value: unknown): string {
+function stringOrNow(value: JsonValue | undefined): string {
   const parsed = optionalString(value);
   return parsed ?? new Date().toISOString();
 }
 
-function stringOrEmpty(value: unknown): string {
+function stringOrEmpty(value: JsonValue | undefined): string {
   return optionalString(value) ?? '';
 }
