@@ -1,7 +1,8 @@
 # Burrow PHP SDK
 
-Official PHP SDK for integrating WordPress, Craft, and other plugin ecosystems
-with the Burrow platform.
+Official PHP SDK for integrating WordPress, Craft, Statamic,
+ExpressionEngine, and other PHP plugin ecosystems or frameworks with the
+Burrow platform.
 
 ## What Burrow Does
 
