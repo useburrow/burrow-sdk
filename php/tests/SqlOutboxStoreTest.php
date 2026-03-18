@@ -24,7 +24,10 @@ final class SqlOutboxStoreTest extends TestCase
 
     public function testEnqueueAndPullPending(): void
     {
-        $record = $this->store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $enqueue = $this->store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        self::assertFalse($enqueue->deduped);
+        self::assertNotNull($enqueue->record);
+        $record = $enqueue->record;
         $rows = $this->store->pullPending(10);
 
         $this->assertCount(1, $rows);
@@ -35,7 +38,8 @@ final class SqlOutboxStoreTest extends TestCase
 
     public function testStatusTransitionsAndAttemptCounts(): void
     {
-        $record = $this->store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $this->store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
 
         $this->store->markRetrying($record->id, 'temporary failure', 60);
         $retrying = $this->fetchRow($record->id);
@@ -58,6 +62,17 @@ final class SqlOutboxStoreTest extends TestCase
         $this->assertNotNull($sent['sent_at']);
     }
 
+    public function testDedupesWhenSentLedgerContainsEventKey(): void
+    {
+        $this->pdo->exec("INSERT INTO burrow_outbox_sent (event_key, sent_at) VALUES ('event_1', '2026-03-09 00:00:00')");
+        $enqueue = $this->store->enqueue('event_1', ['event' => 'forms.submission.received']);
+
+        $this->assertTrue($enqueue->deduped);
+        $statement = $this->pdo->query('SELECT COUNT(*) FROM burrow_outbox');
+        $count = (int) $statement->fetchColumn();
+        $this->assertSame(0, $count);
+    }
+
     private function createSchema(): void
     {
         $this->pdo->exec(
@@ -76,6 +91,12 @@ final class SqlOutboxStoreTest extends TestCase
         );
 
         $this->pdo->exec('CREATE INDEX idx_burrow_outbox_status_next_attempt ON burrow_outbox (status, next_attempt_at)');
+        $this->pdo->exec(
+            'CREATE TABLE burrow_outbox_sent (
+                event_key TEXT PRIMARY KEY,
+                sent_at TEXT NOT NULL
+            )'
+        );
     }
 
     /**

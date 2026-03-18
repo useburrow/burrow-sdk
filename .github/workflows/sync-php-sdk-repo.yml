@@ -1,0 +1,49 @@
+name: Sync PHP SDK Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Target branch in sdk-php repository"
+        required: false
+        default: "main"
+  push:
+    branches: [main]
+    paths:
+      - "php/**"
+      - ".github/workflows/sync-php-sdk-repo.yml"
+
+jobs:
+  sync-php-sdk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Split php subtree
+        id: split
+        run: |
+          split_sha="$(git subtree split --prefix=php HEAD)"
+          echo "sha=${split_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Push split to useburrow/sdk-php
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
+          SDK_PHP_REPO_TOKEN: ${{ secrets.SDK_PHP_REPO_TOKEN }}
+        run: |
+          if [ -z "${SDK_PHP_REPO_TOKEN}" ]; then
+            echo "Missing secret SDK_PHP_REPO_TOKEN"
+            exit 1
+          fi
+
+          remote_url="https://x-access-token:${SDK_PHP_REPO_TOKEN}@github.com/useburrow/sdk-php.git"
+          git remote add sdk-php "${remote_url}"
+          git push sdk-php "${{ steps.split.outputs.sha }}:refs/heads/${TARGET_BRANCH}"

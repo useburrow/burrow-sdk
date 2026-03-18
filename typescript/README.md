@@ -42,10 +42,15 @@ await client.discover({
   capabilities: { forms: ['freeform'] },
 });
 
-await client.link({
+const link = await client.link({
   site: { url: 'https://example.com' },
   selection: { organizationId: 'org_123', projectId: 'prj_123' },
 });
+
+// SDK stores project-scoped ingestion key returned from link and
+// uses it for subsequent event/forms calls.
+const deepLink = client.getLinkedProjectDeepLink();
+// deepLink?.path, deepLink?.url
 
 await client.submitFormsContract({
   platform: 'craft',
@@ -73,9 +78,57 @@ const event = EventEnvelopeBuilder.build({
 await client.publishEvent(event);
 ```
 
+The builder normalizes optional canonical fields to `null` and applies defaults:
+
+- `schemaVersion: "1"`
+- `isLifecycle: false`
+- `properties: {}`
+- `tags: {}`
+
+Lifecycle/correlation fields are supported directly in the envelope:
+
+- `integrationId`, `projectSourceId`, `clientSourceId`
+- `icon`, `entityType`, `externalEntityId`, `externalEventId`
+- `state`, `stateChangedAt`
+
+`source` now captures origin provider for forms/ecommerce when known
+(for example `gravity-forms`, `fluent-forms`, `woocommerce`, `craft-commerce`)
+instead of always using a generic platform label.
+
+### Icon Mapping Behavior
+
+If `icon` is omitted, the SDK resolves a canonical Lucide icon from event/channel mappings.
+If `icon` is provided, explicit override is preserved.
+
+Example defaults:
+
+- `forms.submission.received` -> `file-signature`
+- `ecommerce.order.placed` -> `shopping-cart`
+- `ecommerce.item.purchased` -> `package`
+- `system.stack.snapshot` -> `layers`
+- `system.heartbeat.ping` -> `heart-pulse`
+
+Recommended override points:
+
+- per-contract/form mapping metadata
+- plugin-level event override map
+
+Choose Lucide icon names from https://lucide.dev/icons and send the icon key string (for example `shopping-cart`, `file-signature`, `layers`).
+
+### Source Mapping Behavior
+
+`EventEnvelopeBuilder` resolves `source` in this order:
+
+1. explicit `source` override
+2. provider-specific source for forms/ecommerce events when provider is known
+3. platform fallback (`wordpress-plugin` by default, `craft-plugin` when platform is `craft`)
+
+Source values follow Burrow slug conventions: lowercase and hyphenated.
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run backfill as the final onboarding wizard step after contracts are configured, not on every per-form save.
+Backfill events must include the original source record timestamp per event.
 
 ```ts
 const result = await client.backfillEvents(
@@ -100,6 +153,25 @@ const result = await client.backfillEvents(
 
 console.log(result.summary, result.accepted.length, result.rejected.length);
 ```
+
+Validation summary fields:
+
+- `result.summary.validationRejectedCount`
+- `result.validationRejections` (index + reason + message)
+
+Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for each backfilled record.
+Migration note for scoped keys: after onboarding link, SDK uses returned project-scoped key and enforces project guards:
+- events require `projectId` and it must match scoped project
+- forms contracts/fetch must target scoped project
+
+Additional migration notes (hardening):
+- `client.getProjectId()`, `client.getProjectSourceId('forms')`, and `client.getBackfillRouting('forms')` are now available.
+- `client.getState()` returns persisted onboarding/contracts state to store plugin-side between runs.
+- Forms backfill now fails locally (before HTTP) with typed preflight errors if required routing/auth state is missing:
+  - `MISSING_INGESTION_KEY`
+  - `MISSING_PROJECT_ID`
+  - `MISSING_PROJECT_SOURCE_ID`
+- API errors are normalized (e.g. `INVALID_INGESTION_API_KEY`, `FORMS_BACKFILL_ATTRIBUTION_REQUIRED`) and can be classified via `isRetryableSdkError(error)`.
 
 ### In-Memory Outbox + Worker Loop
 

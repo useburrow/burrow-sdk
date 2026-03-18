@@ -1,12 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import type { JsonObject } from '../client/types.js';
 import type { OutboxStore } from './OutboxStore.js';
-import type { OutboxRecord } from './types.js';
+import type { OutboxEnqueueResult, OutboxRecord, OutboxStats } from './types.js';
 
 export class InMemoryOutboxStore implements OutboxStore {
   private readonly records = new Map<string, OutboxRecord>();
+  private readonly eventKeyToId = new Map<string, string>();
+  private readonly sentLedger = new Map<string, Date>();
 
-  enqueue(eventKey: string, payload: JsonObject): OutboxRecord {
+  enqueue(eventKey: string, payload: JsonObject): OutboxEnqueueResult {
+    if (this.sentLedger.has(eventKey) || this.eventKeyToId.has(eventKey)) {
+      return { deduped: true, eventKey };
+    }
+
     const now = new Date();
     const id = randomUUID();
     const record: OutboxRecord = {
@@ -23,7 +29,8 @@ export class InMemoryOutboxStore implements OutboxStore {
     };
 
     this.records.set(id, record);
-    return { ...record };
+    this.eventKeyToId.set(eventKey, id);
+    return { deduped: false, eventKey, record: { ...record } };
   }
 
   pullPending(limit = 50): OutboxRecord[] {
@@ -64,6 +71,30 @@ export class InMemoryOutboxStore implements OutboxStore {
     return record ? { ...record } : undefined;
   }
 
+  isEventSent(eventKey: string): boolean {
+    return this.sentLedger.has(eventKey);
+  }
+
+  getStats(): OutboxStats {
+    let pending = 0;
+    let retrying = 0;
+    let sent = 0;
+    let failed = 0;
+    for (const record of this.records.values()) {
+      if (record.status === 'pending') pending += 1;
+      if (record.status === 'retrying') retrying += 1;
+      if (record.status === 'sent') sent += 1;
+      if (record.status === 'failed') failed += 1;
+    }
+    return {
+      pending,
+      retrying,
+      sent,
+      failed,
+      sentLedgerCount: this.sentLedger.size,
+    };
+  }
+
   private updateStatus(
     id: string,
     status: OutboxRecord['status'],
@@ -86,5 +117,8 @@ export class InMemoryOutboxStore implements OutboxStore {
       nextAttemptAt,
       sentAt: markAsSent ? now : null,
     });
+    if (markAsSent) {
+      this.sentLedger.set(current.eventKey, now);
+    }
   }
 }

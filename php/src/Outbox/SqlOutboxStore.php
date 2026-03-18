@@ -13,12 +13,17 @@ final class SqlOutboxStore implements OutboxStoreInterface
 {
     public function __construct(
         private readonly PDO $pdo,
-        private readonly string $tableName = 'burrow_outbox'
+        private readonly string $tableName = 'burrow_outbox',
+        private readonly string $sentLedgerTableName = 'burrow_outbox_sent'
     ) {
     }
 
-    public function enqueue(string $eventKey, array $payload): OutboxRecord
+    public function enqueue(string $eventKey, array $payload): OutboxEnqueueResult
     {
+        if ($this->isEventSent($eventKey) || $this->hasEventKey($eventKey)) {
+            return new OutboxEnqueueResult(deduped: true, eventKey: $eventKey);
+        }
+
         $id = bin2hex(random_bytes(16));
         $now = $this->formatTimestamp($this->utcNow());
         $payloadJson = $this->encodePayload($payload);
@@ -43,15 +48,19 @@ final class SqlOutboxStore implements OutboxStoreInterface
             ':sent_at' => null,
         ]);
 
-        return new OutboxRecord(
-            id: $id,
+        return new OutboxEnqueueResult(
+            deduped: false,
             eventKey: $eventKey,
-            status: OutboxStatus::PENDING,
-            attemptCount: 0,
-            payload: $payload,
-            lastError: null,
-            createdAt: $this->parseTimestamp($now),
-            updatedAt: $this->parseTimestamp($now)
+            record: new OutboxRecord(
+                id: $id,
+                eventKey: $eventKey,
+                status: OutboxStatus::PENDING,
+                attemptCount: 0,
+                payload: $payload,
+                lastError: null,
+                createdAt: $this->parseTimestamp($now),
+                updatedAt: $this->parseTimestamp($now)
+            )
         );
     }
 
@@ -111,6 +120,21 @@ final class SqlOutboxStore implements OutboxStoreInterface
             ':sent_at' => $now,
             ':id' => $id,
         ]);
+
+        $eventKeyStatement = $this->pdo->prepare(sprintf('SELECT event_key FROM %s WHERE id = :id', $this->tableName));
+        $eventKeyStatement->execute([':id' => $id]);
+        $eventKey = $eventKeyStatement->fetchColumn();
+        if (is_string($eventKey) && $eventKey !== '') {
+            $this->pdo
+                ->prepare(sprintf('DELETE FROM %s WHERE event_key = :event_key', $this->sentLedgerTableName))
+                ->execute([':event_key' => $eventKey]);
+            $this->pdo
+                ->prepare(sprintf('INSERT INTO %s (event_key, sent_at) VALUES (:event_key, :sent_at)', $this->sentLedgerTableName))
+                ->execute([
+                    ':event_key' => $eventKey,
+                    ':sent_at' => $now,
+                ]);
+        }
     }
 
     public function markRetrying(string $id, string $error, int $delaySeconds = 0): void
@@ -160,6 +184,54 @@ final class SqlOutboxStore implements OutboxStoreInterface
             ':updated_at' => $this->formatTimestamp($this->utcNow()),
             ':id' => $id,
         ]);
+    }
+
+    public function isEventSent(string $eventKey): bool
+    {
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT event_key FROM %s WHERE event_key = :event_key LIMIT 1',
+            $this->sentLedgerTableName
+        ));
+        $statement->execute([':event_key' => $eventKey]);
+        $value = $statement->fetchColumn();
+
+        return is_string($value) && $value !== '';
+    }
+
+    public function getStats(): OutboxStats
+    {
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT status, COUNT(*) AS count FROM %s GROUP BY status',
+            $this->tableName
+        ));
+        $statement->execute();
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $counts = [
+            OutboxStatus::PENDING => 0,
+            OutboxStatus::RETRYING => 0,
+            OutboxStatus::SENT => 0,
+            OutboxStatus::FAILED => 0,
+        ];
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                $status = (string) ($row['status'] ?? '');
+                if (isset($counts[$status])) {
+                    $counts[$status] = (int) ($row['count'] ?? 0);
+                }
+            }
+        }
+
+        $ledgerCount = (int) $this->pdo
+            ->query(sprintf('SELECT COUNT(*) FROM %s', $this->sentLedgerTableName))
+            ->fetchColumn();
+
+        return new OutboxStats(
+            pending: $counts[OutboxStatus::PENDING],
+            retrying: $counts[OutboxStatus::RETRYING],
+            sent: $counts[OutboxStatus::SENT],
+            failed: $counts[OutboxStatus::FAILED],
+            sentLedgerCount: $ledgerCount
+        );
     }
 
     /**
@@ -222,5 +294,17 @@ final class SqlOutboxStore implements OutboxStoreInterface
         }
 
         return $parsed;
+    }
+
+    private function hasEventKey(string $eventKey): bool
+    {
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT id FROM %s WHERE event_key = :event_key LIMIT 1',
+            $this->tableName
+        ));
+        $statement->execute([':event_key' => $eventKey]);
+        $value = $statement->fetchColumn();
+
+        return is_string($value) && $value !== '';
     }
 }

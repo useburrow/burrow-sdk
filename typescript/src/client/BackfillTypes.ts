@@ -8,20 +8,40 @@ export interface BackfillWindow {
 }
 
 export interface BackfillEventsRequest {
-  events: JsonObject[];
+  /** Backfill events must include source-record `timestamp` per event. */
+  events: BackfillEventInput[];
+  channel?: 'forms' | string;
+  routing?: {
+    projectId?: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
+  source?: string;
   backfill: BackfillWindow;
 }
+
+export type BackfillEventInput = JsonObject & {
+  timestamp?: string | null;
+};
 
 export interface BackfillSummary {
   requestedCount: number;
   acceptedCount: number;
   rejectedCount: number;
+  validationRejectedCount: number;
+}
+
+export interface BackfillValidationRejection {
+  index: number;
+  reason: 'missing_timestamp' | 'invalid_timestamp';
+  message: string;
 }
 
 export interface BackfillEventsResponse {
   accepted: JsonObject[];
   rejected: JsonObject[];
   summary: BackfillSummary;
+  validationRejections?: BackfillValidationRejection[];
   latestCursor?: string;
 }
 
@@ -53,12 +73,26 @@ export interface BackfillRunOptions {
 }
 
 export interface BackfillPayload {
+  routing?: {
+    projectId: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
   events: JsonObject[];
   backfill: BackfillWindow;
 }
 
-export function toBackfillPayload(request: BackfillEventsRequest): BackfillPayload {
+export function toBackfillPayload(request: {
+  events: JsonObject[];
+  backfill: BackfillWindow;
+  routing?: {
+    projectId: string;
+    projectSourceId?: string;
+    clientId?: string;
+  };
+}): BackfillPayload {
   return {
+    ...(request.routing ? { routing: request.routing } : {}),
     events: request.events,
     backfill: {
       windowStart: request.backfill.windowStart,

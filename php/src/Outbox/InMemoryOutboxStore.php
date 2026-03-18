@@ -11,9 +11,17 @@ final class InMemoryOutboxStore implements OutboxStoreInterface
 {
     /** @var array<string, OutboxRecord> */
     private array $records = [];
+    /** @var array<string, string> */
+    private array $eventKeyIndex = [];
+    /** @var array<string, DateTimeImmutable> */
+    private array $sentLedger = [];
 
-    public function enqueue(string $eventKey, array $payload): OutboxRecord
+    public function enqueue(string $eventKey, array $payload): OutboxEnqueueResult
     {
+        if (isset($this->sentLedger[$eventKey]) || isset($this->eventKeyIndex[$eventKey])) {
+            return new OutboxEnqueueResult(deduped: true, eventKey: $eventKey);
+        }
+
         $now = $this->utcNow();
         $id = bin2hex(random_bytes(8));
         $record = new OutboxRecord(
@@ -27,7 +35,8 @@ final class InMemoryOutboxStore implements OutboxStoreInterface
             updatedAt: $now
         );
         $this->records[$id] = $record;
-        return $record;
+        $this->eventKeyIndex[$eventKey] = $id;
+        return new OutboxEnqueueResult(deduped: false, eventKey: $eventKey, record: $record);
     }
 
     public function pullPending(int $limit = 50): array
@@ -71,6 +80,7 @@ final class InMemoryOutboxStore implements OutboxStoreInterface
             nextAttemptAt: null,
             sentAt: $now
         );
+        $this->sentLedger[$record->eventKey] = $now;
     }
 
     public function markRetrying(string $id, string $error, int $delaySeconds = 0): void
@@ -115,5 +125,38 @@ final class InMemoryOutboxStore implements OutboxStoreInterface
     private function utcNow(): DateTimeImmutable
     {
         return new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    }
+
+    public function isEventSent(string $eventKey): bool
+    {
+        return isset($this->sentLedger[$eventKey]);
+    }
+
+    public function getStats(): OutboxStats
+    {
+        $pending = 0;
+        $retrying = 0;
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($this->records as $record) {
+            if ($record->status === OutboxStatus::PENDING) {
+                $pending++;
+            } elseif ($record->status === OutboxStatus::RETRYING) {
+                $retrying++;
+            } elseif ($record->status === OutboxStatus::SENT) {
+                $sent++;
+            } elseif ($record->status === OutboxStatus::FAILED) {
+                $failed++;
+            }
+        }
+
+        return new OutboxStats(
+            pending: $pending,
+            retrying: $retrying,
+            sent: $sent,
+            failed: $failed,
+            sentLedgerCount: count($this->sentLedger)
+        );
     }
 }

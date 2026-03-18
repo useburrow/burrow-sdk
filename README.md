@@ -85,10 +85,16 @@ $response = $client->discover(new OnboardingDiscoveryRequest(
 ```php
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 
-$response = $client->link(new OnboardingLinkRequest(
+$link = $client->link(new OnboardingLinkRequest(
     site: ['url' => 'https://example.com'],
     selection: ['organizationId' => 'org_123', 'projectId' => 'prj_123']
 ));
+
+// SDK stores project-scoped ingestion key returned from link,
+// and uses it for subsequent plugin event/forms API calls.
+// Access project deep-link for plugin settings:
+$deepLink = $client->getLinkedProjectDeepLink();
+// $deepLink?->path, $deepLink?->url
 ```
 
 ### Onboarding: Submit Contracts
@@ -97,8 +103,45 @@ $response = $client->link(new OnboardingLinkRequest(
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
 
 $payload = json_decode(file_get_contents(__DIR__ . '/../spec/contracts/forms-contracts.request.json'), true);
-$response = $client->submitFormsContract(new FormsContractSubmissionRequest($payload));
+$contracts = $client->submitFormsContract(new FormsContractSubmissionRequest($payload));
+
+// Persist these for contract ID roundtrips:
+// - $contracts->projectSourceId
+// - $contracts->contractsVersion
+// - $contracts->contractMappings (contractId + form identifiers)
 ```
+
+To rehydrate latest mappings later (for reconnect/reconcile), call fetch:
+
+```php
+$latest = $client->fetchFormsContracts(projectId: 'prj_123', platform: 'craft');
+```
+
+To build a plugin-local lookup map from either response:
+
+```php
+use Burrow\Sdk\Contracts\FormsContractCache;
+use Burrow\Sdk\Contracts\FormsContractCacheReconciler;
+
+$cache = FormsContractCache::fromResponse('prj_123', $contracts);
+$result = FormsContractCacheReconciler::reconcile($cache, $latest, 'prj_123');
+
+if ($result->updated) {
+    // save refreshed cache when contractsVersion changed
+}
+```
+
+The SDK also includes persistence primitives to help plugin agents stay framework-agnostic:
+
+- `FormsContractCacheRepositoryInterface` for storage adapters
+- `FormsContractCacheSerializer` for JSON/object conversion
+- `InMemoryFormsContractCacheRepository` as a reference implementation for tests/dev
+
+Recommended plugin adapter pattern:
+
+- WordPress: implement repository via options table or custom table
+- Craft: implement repository via project config or plugin table
+- Future platforms: implement the same interface without changing SDK client code
 
 ### Publish Event
 
@@ -118,9 +161,68 @@ $event = EventEnvelopeBuilder::build([
 $response = $client->publishEvent($event);
 ```
 
+Prefer SDK canonical builders for system/ecommerce payloads so plugins do not drift from Burrow contract shape:
+
+- `CanonicalEnvelopeBuilders::buildSystemStackSnapshotEvent(...)`
+- `CanonicalEnvelopeBuilders::buildSystemHeartbeatEvent(...)`
+- `CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent(...)`
+- `CanonicalEnvelopeBuilders::buildEcommerceItemPurchasedEvent(...)`
+
+Migration note for plugin agents: replace hand-rolled envelope arrays with canonical builders + `publishEvent`/`backfillEvents`.
+Canonical event names use channel-prefixed three-segment notation (for example `system.stack.snapshot`, `ecommerce.order.placed`).
+
+The normalized event envelope supports lifecycle metadata fields in addition to core routing/event fields:
+
+- `integrationId`, `projectSourceId`, `clientSourceId`
+- `icon`, `isLifecycle`, `entityType`
+- `externalEntityId`, `externalEventId`, `state`, `stateChangedAt`
+
+`source` now captures the actual origin provider for forms/ecommerce when available
+(for example `gravity-forms`, `fluent-forms`, `woocommerce`, `craft-commerce`)
+instead of always using a generic platform label.
+System events keep platform-level source defaults unless explicitly overridden.
+
+Unset optional fields are normalized to `null`, with defaults:
+
+- `schemaVersion: "1"`
+- `isLifecycle: false`
+- `properties: []` (object-map semantics)
+- `tags: []` (object-map semantics)
+
+### Icon Mapping Behavior (Canonical Lucide Names)
+
+`EventEnvelopeBuilder` will auto-resolve `icon` from canonical event/channel mappings when `icon` is not provided.
+If `icon` is provided on input, that override wins.
+
+Suggested default mappings include:
+
+- `forms.submission.received` -> `file-signature`
+- `ecommerce.order.placed` -> `shopping-cart`
+- `ecommerce.item.purchased` -> `package`
+- `system.stack.snapshot` -> `layers`
+- `system.heartbeat.ping` -> `heart-pulse`
+
+Override guidance:
+
+- optional icon per form/contract mapping metadata
+- optional plugin-level event->icon override map
+
+Use Lucide icon key strings from: https://lucide.dev/icons
+
+### Source Mapping Behavior (Provider Origin)
+
+`EventEnvelopeBuilder` auto-resolves `source` with this precedence:
+
+1. explicit `source` input (override wins)
+2. provider-specific source for `forms.*` / `ecommerce.*` events when provider is known
+3. platform fallback (`wordpress-plugin` by default, `craft-plugin` when platform is `craft`)
+
+Provider source values use Burrow slug conventions: lowercase and hyphenated.
+
 ### Backfill Events (Run After Final Contract Setup)
 
 Run plugin backfill after contracts are finalized in onboarding, not on every per-form save.
+Backfill events must include the original source record timestamp per event.
 
 ```php
 use Burrow\Sdk\Client\BackfillOptions;
@@ -155,7 +257,14 @@ $result = $client->backfillEvents(
 
 // Partial failures are surfaced to caller:
 // $result->accepted, $result->rejected, $result->requestedCount, $result->latestCursor
+// $result->validationRejectedCount, $result->validationRejections
 ```
+
+Migration note for plugin consumers: map source created/submitted datetime to `event.timestamp` for every backfilled record.
+Migration note for contract roundtrip: persist `projectSourceId`, `contractsVersion`, and form mapping keys
+(`externalFormId|formHandle`) so plugin forms can reconcile to canonical Burrow `contractId` on future runs.
+Migration note for key scope: after onboarding link, use the returned project-scoped ingestion key.
+When scoped key is active, SDK enforces `projectId` for events and project-matching guards for forms contracts/fetch.
 
 ### Durable Outbox + Worker Loop
 
@@ -195,3 +304,21 @@ Recommended patterns:
 ## Versioning
 
 SemVer per package. Breaking contract changes require major bump and migration notes.
+
+## Migration Notes (SDK hardening)
+
+- `BurrowClient` now persists onboarding/contracts runtime state (`ingestionKey`, `projectId`, forms `projectSourceId`, `contractsVersion`, `contractMappings`).
+- New helpers are available in both SDKs:
+  - `getProjectId()`
+  - `getProjectSourceId('forms')`
+  - `getBackfillRouting('forms')`
+- Forms backfill now enforces SDK preflight before network calls:
+  - `MISSING_INGESTION_KEY`
+  - `MISSING_PROJECT_ID`
+  - `MISSING_PROJECT_SOURCE_ID`
+- Backfill payloads are normalized by SDK and include routing automatically for forms:
+  - `routing.projectId`
+  - `routing.projectSourceId`
+  - `channel='forms'`, `event='forms.submission.received'` defaults
+- Non-2xx API responses are normalized into typed SDK errors with retryability metadata.
+- Retry behavior now treats `400/401/403` as non-retryable and `429/5xx/network` as retryable.

@@ -10,8 +10,11 @@ use Burrow\Sdk\Client\BackfillOptions;
 use Burrow\Sdk\Client\Exception\UnexpectedResponseStatusException;
 use Burrow\Sdk\Contracts\BackfillEventsRequest;
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
+use Burrow\Sdk\Contracts\FormsContractsResponse;
+use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
+use Burrow\Sdk\Contracts\OnboardingLinkResponse;
 use Burrow\Sdk\Outbox\ExponentialBackoffStrategy;
 use Burrow\Sdk\Outbox\InMemoryOutboxStore;
 use Burrow\Sdk\Outbox\OutboxStatus;
@@ -26,7 +29,8 @@ final class OutboxWorkerTest extends TestCase
     public function testMarksRecordSentOnSuccessfulPublish(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker($store, new SequenceClient([new HttpResponse(200, ['ok' => true], '{"ok":true}')]));
 
         $result = $worker->runOnce();
@@ -43,7 +47,8 @@ final class OutboxWorkerTest extends TestCase
     public function testRetriesOnTransportFailure(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker(
             $store,
             new SequenceClient([new TransportFailureException('connection timeout')]),
@@ -63,7 +68,8 @@ final class OutboxWorkerTest extends TestCase
     public function testFailsAfterMaxAttemptsForRetryableErrors(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $store->markRetrying($record->id, 'attempt one failed', 0);
         $store->markRetrying($record->id, 'attempt two failed', 0);
 
@@ -84,7 +90,8 @@ final class OutboxWorkerTest extends TestCase
     public function testFailsImmediatelyOnNonRetryableError(): void
     {
         $store = new InMemoryOutboxStore();
-        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received']);
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
         $worker = new OutboxWorker($store, new SequenceClient([new RuntimeException('validation failed')]));
 
         $result = $worker->runOnce();
@@ -92,6 +99,27 @@ final class OutboxWorkerTest extends TestCase
 
         $this->assertSame(1, $result->failedCount);
         $this->assertSame(OutboxStatus::FAILED, $updated->status);
+        $this->assertSame(1, $updated->attemptCount);
+    }
+
+    public function testMarksSentWithoutPublishingWhenSkipNetworkSendEnabled(): void
+    {
+        $store = new InMemoryOutboxStore();
+        $record = $store->enqueue('event_1', ['event' => 'forms.submission.received'])->record;
+        self::assertNotNull($record);
+        $worker = new OutboxWorker(
+            $store,
+            new SequenceClient([new RuntimeException('publish should be skipped')]),
+            skipNetworkSend: true
+        );
+
+        $result = $worker->runOnce();
+        $updated = $this->readRecord($store, $record->id);
+
+        $this->assertSame(1, $result->sentCount);
+        $this->assertSame(0, $result->retryingCount);
+        $this->assertSame(0, $result->failedCount);
+        $this->assertSame(OutboxStatus::SENT, $updated->status);
         $this->assertSame(1, $updated->attemptCount);
     }
 
@@ -126,14 +154,44 @@ final class SequenceClient implements BurrowClientInterface
         return $this->next();
     }
 
-    public function link(OnboardingLinkRequest $request): HttpResponse
+    public function link(OnboardingLinkRequest $request): OnboardingLinkResponse
     {
-        return $this->next();
+        return OnboardingLinkResponse::fromResponseBody($this->next()->body);
     }
 
-    public function submitFormsContract(FormsContractSubmissionRequest $request): HttpResponse
+    public function submitFormsContract(FormsContractSubmissionRequest $request): FormsContractsResponse
     {
-        return $this->next();
+        return FormsContractsResponse::fromResponseBody($this->next()->body);
+    }
+
+    public function fetchFormsContracts(string $projectId, string $platform): FormsContractsResponse
+    {
+        return FormsContractsResponse::fromResponseBody($this->next()->body);
+    }
+
+    public function getLinkedProjectDeepLink(): ?LinkedProjectDeepLink
+    {
+        return null;
+    }
+
+    public function getState(): \Burrow\Sdk\Client\BurrowClientState
+    {
+        return new \Burrow\Sdk\Client\BurrowClientState();
+    }
+
+    public function getProjectId(): ?string
+    {
+        return null;
+    }
+
+    public function getProjectSourceId(?string $channel = 'forms'): ?string
+    {
+        return null;
+    }
+
+    public function getBackfillRouting(string $channel): array
+    {
+        return ['projectId' => '', 'projectSourceId' => ''];
     }
 
     public function publishEvent(array $event): HttpResponse
@@ -152,6 +210,8 @@ final class SequenceClient implements BurrowClientInterface
             requestedCount: 0,
             acceptedCount: 0,
             rejectedCount: 0,
+            validationRejectedCount: 0,
+            validationRejections: [],
             latestCursor: null
         );
     }

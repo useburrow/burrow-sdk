@@ -3,6 +3,24 @@
   "description": "Burrow PHP SDK for plugin integrations.",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://github.com/useburrow/sdk-php",
+  "keywords": [
+    "burrow",
+    "sdk",
+    "php",
+    "plugins",
+    "events"
+  ],
+  "authors": [
+    {
+      "name": "Burrow",
+      "homepage": "https://useburrow.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/useburrow/sdk-php/issues",
+    "source": "https://github.com/useburrow/sdk-php"
+  },
   "require": {
     "php": "^8.2"
   },

@@ -12,6 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added TypeScript `SqlOutboxStore` with adapter-based SQL integration and tests for lifecycle state transitions.
 - Added transport retry policy support in TypeScript `FetchTransport` for transient network and `5xx` failures.
 - Added TypeScript CI coverage in GitHub Actions (`typecheck`, `test`, `build`) and a manual npm release workflow for package publishing.
+- Added PHP forms contract ID roundtrip models and client support:
+  - parsed responses for `POST /api/v1/plugin-onboarding/forms/contracts`
+  - new fetch helper for `POST /api/v1/plugin-onboarding/forms/contracts/fetch`
+  - local cache + reconcile utilities based on `contractsVersion`
+- Added PHP persistence primitives for contract cache portability across platforms:
+  - `FormsContractCacheRepositoryInterface`
+  - `FormsContractCacheSerializer`
+  - `InMemoryFormsContractCacheRepository`
+- Added PHP onboarding link response models for:
+  - project-scoped ingestion key metadata (`ingestionKey`)
+  - linked project deep-link metadata (`burrowProjectPath`, `burrowProjectUrl`)
+- Added `getLinkedProjectDeepLink()` helper for plugin settings UIs.
+- Added TypeScript onboarding link response models for project-scoped ingestion key metadata and linked project deep-links.
+- Added TypeScript `getLinkedProjectDeepLink()` helper and forms contracts fetch response parsing.
+- Added PHP canonical contract hardening primitives for system/ecommerce/forms:
+  - canonical event name normalizer (`CanonicalEventName`)
+  - channel routing resolver/state (`ChannelRoutingResolver`, `ChannelRoutingState`)
+  - authoritative system/ecommerce builders (`CanonicalEnvelopeBuilders`)
+  - typed contract errors (`EventContractException`) and retryability helper (`SdkErrorHelper`)
+
+### Changed
+
+- Changed PHP `submitFormsContract(...)` to return typed contract response data (`projectSourceId`, `contractsVersion`, `contractMappings`, `formsContracts`) for plugin persistence/reconciliation.
+- Changed PHP event envelope source resolution to capture provider origin for forms/ecommerce events (for example `gravity-forms`, `fluent-forms`, `woocommerce`) with explicit override support and platform fallback defaults.
+- Migration note: `source` now captures origin provider when available, not just host platform plugin.
+- Changed PHP link flow to store and use project-scoped ingestion key returned from onboarding link.
+- Changed PHP event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
+- Changed TypeScript link flow to store and use project-scoped ingestion key returned from onboarding link.
+- Changed TypeScript event/forms calls to enforce project-scoped key guards (`projectId` required on events and must match scoped project).
+- Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
+- Changed PHP submit/backfill preflight to enforce canonical names and channel project source IDs before HTTP submission.
 
 ## [0.2.0] - 2026-03-09
 
