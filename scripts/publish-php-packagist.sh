@@ -17,8 +17,8 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Working tree must be clean before publishing."
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  echo "Tracked changes must be clean before publishing."
   exit 1
 fi
 
