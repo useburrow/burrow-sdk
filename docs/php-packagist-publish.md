@@ -16,8 +16,9 @@ This repository keeps the PHP SDK in `php/` and mirrors it to
 ## Ongoing release flow
 
 1. Merge PHP changes into this repo `main`.
-2. Confirm sync workflow pushed the latest split to `useburrow/sdk-php`.
-3. In a local clone of `useburrow/sdk-php`, tag and push:
+2. Update `php/CHANGELOG.md` with release notes.
+3. Confirm sync workflow pushed the latest split to `useburrow/sdk-php`.
+4. In a local clone of `useburrow/sdk-php`, tag and push:
 
    ```bash
    git tag v0.9.3
@@ -30,7 +31,8 @@ This repository keeps the PHP SDK in `php/` and mirrors it to
    ./scripts/tag-php-sdk-release.sh useburrow/sdk-php v0.9.3 main
    ```
 
-4. Verify the new version appears on Packagist and installs cleanly.
+5. GitHub release notes are created automatically in `useburrow/sdk-php` when the `v*` tag is pushed.
+6. Verify the new version appears on Packagist and installs cleanly.
 
 ## Manual fallback (no GitHub Actions)
 

@@ -13,6 +13,11 @@ release_tag="$2"
 target_branch="${3:-main}"
 remote_url="git@github.com:${target_repo}.git"
 
+if [[ ! "${release_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$ ]]; then
+  echo "Release tag must look like v<major>.<minor>.<patch> (for example v0.9.3)"
+  exit 1
+fi
+
 temp_dir="$(mktemp -d)"
 cleanup() {
   rm -rf "${temp_dir}"
@@ -28,8 +33,9 @@ git clone --depth 1 --branch "${target_branch}" "${remote_url}" "${temp_dir}"
     exit 1
   fi
 
-  git tag "${release_tag}"
+  git tag -a "${release_tag}" -m "Release ${release_tag}"
   git push origin "${release_tag}"
 )
 
 echo "Pushed ${release_tag} to ${target_repo}"
+echo "GitHub release will be created automatically from the tag workflow."
