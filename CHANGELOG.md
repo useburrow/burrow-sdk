@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `ecommerce.cart.abandoned` lifecycle event type and canonical builders (TypeScript + PHP) for carts that go idle before checkout, with `cartTotal`, `cartItemCount`, `currency`, and `minutesSinceLastActivity` properties.
+- Added `ecommerce.payment.failed` discrete event type and canonical builders (TypeScript + PHP) for failed payment attempts, with `orderId`, `cartTotal`, `currency`, `failureReason`, and `paymentMethod` properties.
+- Added icon mappings for new events: `clock-fading` for cart abandoned, `circle-alert` for payment failed.
+- Added PHP `CanonicalEventName` allow-list entries for both new event types.
+- Updated `ecommerce.cart.recovered` documentation to note that recovery can follow either `cart.abandoned` or `checkout.abandoned` (matched by `customerToken`).
+
 - Added TypeScript `SqlOutboxStore` with adapter-based SQL integration and tests for lifecycle state transitions.
 - Added transport retry policy support in TypeScript `FetchTransport` for transient network and `5xx` failures.
 - Added TypeScript CI coverage in GitHub Actions (`typecheck`, `test`, `build`) and a manual npm release workflow for package publishing.

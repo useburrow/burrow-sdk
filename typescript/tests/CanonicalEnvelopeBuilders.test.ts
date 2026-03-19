@@ -193,6 +193,45 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
     expect(abandoned.state).toBe('abandoned');
     expect(abandoned.externalEntityId).toBe('wc_session_abc123');
 
+    const cartAbandoned = CanonicalEnvelopeBuilders.buildEcommerceCartAbandonedEvent(
+      {
+        organizationId: 'org_123',
+        externalEntityId: 'wc_cart_xyz789',
+        cartTotal: 85.5,
+        cartItemCount: 3,
+        currency: 'USD',
+        minutesSinceLastActivity: 60,
+        customerToken: 'cust_tok_1',
+      },
+      routing
+    );
+    expect(cartAbandoned.event).toBe('ecommerce.cart.abandoned');
+    expect(cartAbandoned.isLifecycle).toBe(true);
+    expect(cartAbandoned.entityType).toBe('cart');
+    expect(cartAbandoned.state).toBe('abandoned');
+    expect(cartAbandoned.externalEntityId).toBe('wc_cart_xyz789');
+    expect(cartAbandoned.properties.minutesSinceLastActivity).toBe(60);
+    expect(cartAbandoned.tags.customerToken).toBe('cust_tok_1');
+
+    const paymentFailed = CanonicalEnvelopeBuilders.buildEcommercePaymentFailedEvent(
+      {
+        organizationId: 'org_123',
+        orderId: 'ord_456',
+        cartTotal: 120.5,
+        currency: 'USD',
+        failureReason: 'card_declined',
+        paymentMethod: 'stripe',
+        customerToken: 'cust_tok_1',
+      },
+      routing
+    );
+    expect(paymentFailed.event).toBe('ecommerce.payment.failed');
+    expect(paymentFailed.isLifecycle).toBe(false);
+    expect(paymentFailed.properties.failureReason).toBe('card_declined');
+    expect(paymentFailed.properties.paymentMethod).toBe('stripe');
+    expect(paymentFailed.tags.paymentMethod).toBe('stripe');
+    expect(paymentFailed.tags.customerToken).toBe('cust_tok_1');
+
     const recovered = CanonicalEnvelopeBuilders.buildEcommerceCartRecoveredEvent(
       {
         organizationId: 'org_123',

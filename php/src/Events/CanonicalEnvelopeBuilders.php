@@ -399,6 +399,72 @@ final class CanonicalEnvelopeBuilders
      * @param array<string,mixed> $input
      * @return array<string,mixed>
      */
+    public static function buildEcommerceCartAbandonedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['currency', 'externalEntityId']);
+        self::assertRequiredNumericKeys($input, ['cartTotal', 'cartItemCount', 'minutesSinceLastActivity']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'ecommerce.cart.abandoned',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'clock-fading',
+            'isLifecycle' => true,
+            'entityType' => 'cart',
+            'externalEntityId' => self::readOptionalString($input, 'externalEntityId'),
+            'state' => 'abandoned',
+            'properties' => [
+                'cartTotal' => $input['cartTotal'],
+                'cartItemCount' => $input['cartItemCount'],
+                'currency' => $input['currency'],
+                'minutesSinceLastActivity' => $input['minutesSinceLastActivity'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildEcommercePaymentFailedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['orderId', 'currency', 'failureReason', 'paymentMethod']);
+        self::assertRequiredNumericKeys($input, ['cartTotal']);
+        $resolved = $routing->getRoutingForChannel('ecommerce');
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'ecommerce',
+            'event' => 'ecommerce.payment.failed',
+            'timestamp' => $input['timestamp'] ?? gmdate('c'),
+            'icon' => 'circle-alert',
+            'properties' => [
+                'orderId' => $input['orderId'],
+                'cartTotal' => $input['cartTotal'],
+                'currency' => $input['currency'],
+                'failureReason' => $input['failureReason'],
+                'paymentMethod' => $input['paymentMethod'],
+            ],
+            'tags' => self::buildStringTags($input, ['provider', 'currency', 'customerToken', 'paymentMethod'], true),
+        ], ['strictNames' => true]);
+    }
+
+    /**
+     * Recovery can follow either ecommerce.cart.abandoned or ecommerce.checkout.abandoned,
+     * matched by customerToken across the abandonment and subsequent order events.
+     *
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
     public static function buildEcommerceCartRecoveredEvent(array $input, ChannelRoutingResolver $routing): array
     {
         self::assertRequiredStringKeys($input, ['orderId', 'currency']);

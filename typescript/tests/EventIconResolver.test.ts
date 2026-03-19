@@ -14,7 +14,9 @@ describe('resolveIconForEvent', () => {
     expect(resolveIconForEvent('ecommerce', 'ecommerce.cart.removed')).toBe('package-minus');
     expect(resolveIconForEvent('ecommerce', 'ecommerce.checkout.started')).toBe('credit-card');
     expect(resolveIconForEvent('ecommerce', 'ecommerce.checkout.abandoned')).toBe('hourglass');
+    expect(resolveIconForEvent('ecommerce', 'ecommerce.cart.abandoned')).toBe('clock-fading');
     expect(resolveIconForEvent('ecommerce', 'ecommerce.cart.recovered')).toBe('rotate-ccw');
+    expect(resolveIconForEvent('ecommerce', 'ecommerce.payment.failed')).toBe('circle-alert');
   });
 
   it('falls back to channel default when event is unknown', () => {

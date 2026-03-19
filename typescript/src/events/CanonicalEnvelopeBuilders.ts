@@ -8,6 +8,8 @@ export interface EcommerceCartItemAddedInput extends EventInput {}
 export interface EcommerceCartItemRemovedInput extends EventInput {}
 export interface EcommerceCheckoutStartedInput extends EventInput {}
 export interface EcommerceCheckoutAbandonedInput extends EventInput {}
+export interface EcommerceCartAbandonedInput extends EventInput {}
+export interface EcommercePaymentFailedInput extends EventInput {}
 export interface EcommerceCartRecoveredInput extends EventInput {}
 
 export class CanonicalEnvelopeBuilders {
@@ -208,6 +210,63 @@ export class CanonicalEnvelopeBuilders {
     });
   }
 
+  static buildEcommerceCartAbandonedEvent(input: EcommerceCartAbandonedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['currency', 'externalEntityId']);
+    assertRequiredNumericKeys(input, ['cartTotal', 'cartItemCount', 'minutesSinceLastActivity']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'ecommerce.cart.abandoned',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'clock-fading',
+      isLifecycle: true,
+      entityType: 'cart',
+      externalEntityId: optionalString(input.externalEntityId),
+      state: 'abandoned',
+      properties: {
+        cartTotal: input.cartTotal,
+        cartItemCount: input.cartItemCount,
+        currency: input.currency,
+        minutesSinceLastActivity: input.minutesSinceLastActivity,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken']),
+    });
+  }
+
+  static buildEcommercePaymentFailedEvent(input: EcommercePaymentFailedInput, routing: ChannelRoutingResolver) {
+    assertRequiredStringKeys(input, ['orderId', 'currency', 'failureReason', 'paymentMethod']);
+    assertRequiredNumericKeys(input, ['cartTotal']);
+    const resolved = routing.getRoutingForChannel('ecommerce');
+
+    return EventEnvelopeBuilder.build({
+      organizationId: stringOrEmpty(input.organizationId),
+      clientId: resolved.clientId ?? stringOrEmpty(input.clientId),
+      projectId: resolved.projectId,
+      projectSourceId: resolved.projectSourceId,
+      channel: 'ecommerce',
+      event: 'ecommerce.payment.failed',
+      timestamp: stringOrNow(input.timestamp),
+      icon: 'circle-alert',
+      properties: {
+        orderId: input.orderId,
+        cartTotal: input.cartTotal,
+        currency: input.currency,
+        failureReason: input.failureReason,
+        paymentMethod: input.paymentMethod,
+      },
+      tags: buildStringTags(input, ['provider', 'currency', 'customerToken', 'paymentMethod']),
+    });
+  }
+
+  /**
+   * Recovery can follow either ecommerce.cart.abandoned or ecommerce.checkout.abandoned,
+   * matched by customerToken across the abandonment and subsequent order events.
+   */
   static buildEcommerceCartRecoveredEvent(input: EcommerceCartRecoveredInput, routing: ChannelRoutingResolver) {
     assertRequiredStringKeys(input, ['orderId', 'currency']);
     assertRequiredNumericKeys(input, ['orderTotal', 'originalCartTotal', 'minutesSinceAbandonment']);

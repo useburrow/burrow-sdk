@@ -236,6 +236,43 @@ final class EventContractHardeningTest extends TestCase
         $this->assertSame('abandoned', $checkoutAbandoned['state']);
         $this->assertSame('wc_session_abc123', $checkoutAbandoned['externalEntityId']);
 
+        $cartAbandoned = CanonicalEnvelopeBuilders::buildEcommerceCartAbandonedEvent([
+            'organizationId' => 'org_123',
+            'externalEntityId' => 'wc_cart_xyz789',
+            'cartTotal' => 85.50,
+            'cartItemCount' => 3,
+            'currency' => 'USD',
+            'minutesSinceLastActivity' => 60,
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('ecommerce.cart.abandoned', $cartAbandoned['event']);
+        $this->assertSame('clock-fading', $cartAbandoned['icon']);
+        $this->assertTrue($cartAbandoned['isLifecycle']);
+        $this->assertSame('cart', $cartAbandoned['entityType']);
+        $this->assertSame('abandoned', $cartAbandoned['state']);
+        $this->assertSame('wc_cart_xyz789', $cartAbandoned['externalEntityId']);
+        $this->assertSame(60, $cartAbandoned['properties']['minutesSinceLastActivity']);
+        $this->assertSame('cust_tok_1', $cartAbandoned['tags']['customerToken']);
+
+        $paymentFailed = CanonicalEnvelopeBuilders::buildEcommercePaymentFailedEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1004',
+            'cartTotal' => 120.50,
+            'currency' => 'USD',
+            'failureReason' => 'card_declined',
+            'paymentMethod' => 'stripe',
+            'customerToken' => 'cust_tok_1',
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame('ecommerce.payment.failed', $paymentFailed['event']);
+        $this->assertSame('circle-alert', $paymentFailed['icon']);
+        $this->assertFalse($paymentFailed['isLifecycle']);
+        $this->assertSame('card_declined', $paymentFailed['properties']['failureReason']);
+        $this->assertSame('stripe', $paymentFailed['properties']['paymentMethod']);
+        $this->assertSame('stripe', $paymentFailed['tags']['paymentMethod']);
+        $this->assertSame('cust_tok_1', $paymentFailed['tags']['customerToken']);
+
         $cartRecovered = CanonicalEnvelopeBuilders::buildEcommerceCartRecoveredEvent([
             'organizationId' => 'org_123',
             'orderId' => '1003',
