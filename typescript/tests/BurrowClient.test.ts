@@ -252,4 +252,80 @@ describe('BurrowClient', () => {
       })
     ).rejects.toThrow('Cannot forms contracts');
   });
+
+  it('persists platform from link and sets craft-plugin source for Craft runtime events', async () => {
+    const transport = new QueueRecordingTransport([
+      {
+        status: 200,
+        body: {
+          routing: {},
+          ingestionKey: { key: 'ingest_key', keyPrefix: 'burrow', scope: 'organization', projectId: null },
+        },
+        raw: '{}',
+      },
+      { status: 207, body: { ok: true }, raw: '{}' },
+    ]);
+    const client = new BurrowClient({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'bootstrap_key',
+      transport,
+    });
+
+    await client.link({
+      site: { url: 'https://craft.test' },
+      selection: { organizationId: 'org_123' },
+      platform: 'craft',
+    });
+
+    expect(client.getState().platform).toBe('craft');
+
+    await client.publishEvent({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'system',
+      event: 'system.heartbeat.ping',
+      timestamp: '2026-03-01T12:00:00.000Z',
+      properties: { responseMs: 12 },
+      tags: {},
+    });
+
+    expect(transport.lastPayload.source).toBe('craft-plugin');
+  });
+
+  it('uses wordpress-plugin when link platform is wordpress', async () => {
+    const transport = new QueueRecordingTransport([
+      {
+        status: 200,
+        body: {
+          routing: {},
+          ingestionKey: { key: 'ingest_key', keyPrefix: 'burrow', scope: 'organization', projectId: null },
+        },
+        raw: '{}',
+      },
+      { status: 207, body: { ok: true }, raw: '{}' },
+    ]);
+    const client = new BurrowClient({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'bootstrap_key',
+      transport,
+    });
+
+    await client.link({
+      site: { url: 'https://wp.test' },
+      selection: { organizationId: 'org_123' },
+      platform: 'wordpress',
+    });
+
+    await client.publishEvent({
+      organizationId: 'org_123',
+      clientId: 'cli_123',
+      channel: 'system',
+      event: 'system.heartbeat.ping',
+      timestamp: '2026-03-01T12:00:00.000Z',
+      properties: { responseMs: 12 },
+      tags: {},
+    });
+
+    expect(transport.lastPayload.source).toBe('wordpress-plugin');
+  });
 });

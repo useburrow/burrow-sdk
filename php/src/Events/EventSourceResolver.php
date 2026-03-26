@@ -58,6 +58,46 @@ final class EventSourceResolver
         return self::resolvePlatformFallback($event);
     }
 
+    public static function getDefaultEventSource(?string $platform): string
+    {
+        if ($platform === null || $platform === '') {
+            return 'wordpress-plugin';
+        }
+
+        $p = strtolower(trim($platform));
+
+        return $p === 'craft' ? 'craft-plugin' : 'wordpress-plugin';
+    }
+
+    /**
+     * @param array<string,mixed> $event
+     */
+    public static function extractPlatformHint(array $event): ?string
+    {
+        $platform = self::readString($event, 'platform');
+        if ($platform !== null) {
+            return strtolower($platform);
+        }
+
+        $properties = $event['properties'] ?? null;
+        if (is_array($properties)) {
+            $platform = self::readString($properties, 'platform');
+            if ($platform !== null) {
+                return strtolower($platform);
+            }
+        }
+
+        $tags = $event['tags'] ?? null;
+        if (is_array($tags)) {
+            $platform = self::readString($tags, 'platform');
+            if ($platform !== null) {
+                return strtolower($platform);
+            }
+        }
+
+        return null;
+    }
+
     private static function resolveFormsProvider(string $provider): ?string
     {
         $key = self::normalizeProviderKey($provider);
@@ -80,12 +120,7 @@ final class EventSourceResolver
      */
     private static function resolvePlatformFallback(array $event): string
     {
-        $platform = self::extractPlatformHint($event);
-        if ($platform === 'craft') {
-            return 'craft-plugin';
-        }
-
-        return 'wordpress-plugin';
+        return self::getDefaultEventSource(self::extractPlatformHint($event));
     }
 
     /**
@@ -125,35 +160,6 @@ final class EventSourceResolver
                 if ($tagValue !== null) {
                     return $tagValue;
                 }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<string,mixed> $event
-     */
-    private static function extractPlatformHint(array $event): ?string
-    {
-        $platform = self::readString($event, 'platform');
-        if ($platform !== null) {
-            return strtolower($platform);
-        }
-
-        $properties = $event['properties'] ?? null;
-        if (is_array($properties)) {
-            $platform = self::readString($properties, 'platform');
-            if ($platform !== null) {
-                return strtolower($platform);
-            }
-        }
-
-        $tags = $event['tags'] ?? null;
-        if (is_array($tags)) {
-            $platform = self::readString($tags, 'platform');
-            if ($platform !== null) {
-                return strtolower($platform);
             }
         }
 

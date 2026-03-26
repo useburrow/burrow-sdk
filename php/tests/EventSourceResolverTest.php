@@ -9,6 +9,15 @@ use PHPUnit\Framework\TestCase;
 
 final class EventSourceResolverTest extends TestCase
 {
+    public function testMapsPlatformToDefaultCmsPluginSource(): void
+    {
+        $this->assertSame('craft-plugin', EventSourceResolver::getDefaultEventSource('craft'));
+        $this->assertSame('craft-plugin', EventSourceResolver::getDefaultEventSource('Craft'));
+        $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource('wordpress'));
+        $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource(null));
+        $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource(''));
+    }
+
     public function testResolvesFormsProvidersToCanonicalSlugs(): void
     {
         $this->assertSame('gravity-forms', EventSourceResolver::resolveSourceForEvent([

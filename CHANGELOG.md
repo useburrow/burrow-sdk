@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
 - Changed PHP submit/backfill preflight to enforce canonical names and channel project source IDs before HTTP submission.
 
+## [0.9.5] - 2026-03-26
+
+### Fixed
+
+- Event ingest `source` for Craft integrations: the SDK now persists `platform` from onboarding `link()`, merges it into outgoing events (when the payload does not already declare a platform), and clears a mistaken default `wordpress-plugin` so POST `/api/v1/events` emits `craft-plugin` for Craft. TypeScript and PHP implementations are aligned, with `getDefaultEventSource`, `ApplyClientPlatformDefault` / `applyClientPlatformDefault`, and coverage tests.
+
 ## [0.2.0] - 2026-03-09
 
 ### Added
@@ -81,5 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - PHPUnit test suite passes: `18 tests`, `133 assertions`.
 
-[Unreleased]: https://github.com/useburrow/burrow-sdk/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/useburrow/burrow-sdk/compare/0.9.5...HEAD
+[0.9.5]: https://github.com/useburrow/burrow-sdk/releases/tag/0.9.5
 [0.2.0]: https://github.com/useburrow/burrow-sdk/releases/tag/0.2.0

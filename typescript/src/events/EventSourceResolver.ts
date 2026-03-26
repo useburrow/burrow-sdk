@@ -21,6 +21,11 @@ const ECOMMERCE_PROVIDER_MAP: Record<string, string> = {
   craftcommerce: 'craft-commerce',
 };
 
+export function getDefaultEventSource(platform: string | null | undefined): string {
+  const p = platform && typeof platform === 'string' ? platform.trim().toLowerCase() : '';
+  return p === 'craft' ? 'craft-plugin' : 'wordpress-plugin';
+}
+
 export function resolveSourceForEvent(event: JsonObject): string {
   const channel = readString(event.channel)?.toLowerCase() ?? '';
   const provider = extractProviderHint(event);
@@ -39,8 +44,28 @@ export function resolveSourceForEvent(event: JsonObject): string {
     }
   }
 
-  const platform = extractPlatformHint(event);
-  return platform === 'craft' ? 'craft-plugin' : 'wordpress-plugin';
+  return getDefaultEventSource(extractPlatformHint(event));
+}
+
+export function extractPlatformHint(event: JsonObject): string | null {
+  const direct = readString(event.platform);
+  if (direct) {
+    return direct.toLowerCase();
+  }
+
+  const properties = isJsonObject(event.properties) ? event.properties : null;
+  const inProperties = properties ? readString(properties.platform) : null;
+  if (inProperties) {
+    return inProperties.toLowerCase();
+  }
+
+  const tags = isJsonObject(event.tags) ? event.tags : null;
+  const inTags = tags ? readString(tags.platform) : null;
+  if (inTags) {
+    return inTags.toLowerCase();
+  }
+
+  return null;
 }
 
 function normalizeProvider(provider: string): string {
@@ -77,27 +102,6 @@ function extractProviderHint(event: JsonObject): string | null {
     if (inTags) {
       return inTags;
     }
-  }
-
-  return null;
-}
-
-function extractPlatformHint(event: JsonObject): string | null {
-  const direct = readString(event.platform);
-  if (direct) {
-    return direct.toLowerCase();
-  }
-
-  const properties = isJsonObject(event.properties) ? event.properties : null;
-  const inProperties = properties ? readString(properties.platform) : null;
-  if (inProperties) {
-    return inProperties.toLowerCase();
-  }
-
-  const tags = isJsonObject(event.tags) ? event.tags : null;
-  const inTags = tags ? readString(tags.platform) : null;
-  if (inTags) {
-    return inTags.toLowerCase();
   }
 
   return null;

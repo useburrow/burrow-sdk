@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { resolveSourceForEvent } from '../src/events/EventSourceResolver.js';
+import { getDefaultEventSource, resolveSourceForEvent } from '../src/events/EventSourceResolver.js';
 
 describe('EventSourceResolver', () => {
+  it('maps platform to default CMS plugin source', () => {
+    expect(getDefaultEventSource('craft')).toBe('craft-plugin');
+    expect(getDefaultEventSource('Craft')).toBe('craft-plugin');
+    expect(getDefaultEventSource('wordpress')).toBe('wordpress-plugin');
+    expect(getDefaultEventSource(undefined)).toBe('wordpress-plugin');
+    expect(getDefaultEventSource(null)).toBe('wordpress-plugin');
+    expect(getDefaultEventSource('')).toBe('wordpress-plugin');
+  });
+
   it('resolves canonical forms providers', () => {
     expect(resolveSourceForEvent({ channel: 'forms', properties: { provider: 'gravityforms' } })).toBe(
       'gravity-forms'

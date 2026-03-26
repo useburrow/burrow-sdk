@@ -27,6 +27,8 @@ import {
 } from '../contracts/OnboardingLinkResponse.js';
 import { isRetryableSdkError, normalizeApiError, SdkPreflightError } from '../transport/errors.js';
 import type { BurrowClientOptions } from './types.js';
+import { applyClientPlatformDefault, eventNeedsInferredSource } from '../events/applyClientPlatformDefault.js';
+import { resolveSourceForEvent } from '../events/EventSourceResolver.js';
 
 export interface BurrowClientState {
   ingestionKey: string | null;
@@ -37,6 +39,8 @@ export interface BurrowClientState {
   contractsVersion: string | null;
   contractMappings: JsonObject[];
   clientId: string | null;
+  /** Active CMS (`craft` | `wordpress`), e.g. from onboarding link; drives default `source` for ingest. */
+  platform: string | null;
 }
 
 export interface BackfillRouting {
@@ -75,6 +79,7 @@ export class BurrowClient {
       contractsVersion: initialState.contractsVersion ?? null,
       contractMappings: Array.isArray(initialState.contractMappings) ? initialState.contractMappings : [],
       clientId: initialState.clientId ?? null,
+      platform: initialState.platform ?? null,
     };
   }
 
@@ -86,6 +91,11 @@ export class BurrowClient {
     const response = await this.post('/api/v1/plugin-onboarding/link', toOnboardingLinkPayload(request));
     const parsed = parseOnboardingLinkResponse(response.body);
     this.lastLinkResponse = parsed;
+
+    const platformTrimmed = typeof request.platform === 'string' ? request.platform.trim() : '';
+    if (platformTrimmed !== '') {
+      this.state.platform = platformTrimmed;
+    }
 
     if (parsed.ingestionKey?.key) {
       this.apiKey = parsed.ingestionKey.key;
@@ -182,8 +192,9 @@ export class BurrowClient {
   }
 
   async publishEvent(event: JsonObject): Promise<HttpResponse> {
-    this.assertScopedProjectAllowedForEvent(event);
-    return this.post('/api/v1/events', event, [200, 207]);
+    const payload = this.normalizeEventForIngest(event);
+    this.assertScopedProjectAllowedForEvent(payload);
+    return this.post('/api/v1/events', payload, [200, 207]);
   }
 
   async backfillEvents(request: BackfillEventsRequest, options: BackfillRunOptions = {}): Promise<BackfillEventsResponse> {
@@ -213,7 +224,7 @@ export class BurrowClient {
         });
         return;
       }
-      validEvents.push(normalized.event);
+      validEvents.push(this.normalizeEventForIngest(normalized.event));
     });
 
     const chunks = chunk(validEvents, batchSize);
@@ -397,6 +408,13 @@ export class BurrowClient {
     }
 
     throw new Error('Backfill retry attempts exhausted.');
+  }
+
+  private normalizeEventForIngest(event: JsonObject): JsonObject {
+    const merged = applyClientPlatformDefault(event, this.state.platform);
+    return eventNeedsInferredSource(merged)
+      ? { ...merged, source: resolveSourceForEvent(merged) }
+      : merged;
   }
 
   private assertScopedProjectAllowedForEvent(event: JsonObject): void {

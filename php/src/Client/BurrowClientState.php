@@ -15,7 +15,8 @@ final class BurrowClientState
         public ?string $formsProjectSourceId = null,
         public ?string $contractsVersion = null,
         public array $contractMappings = [],
-        public ?string $clientId = null
+        public ?string $clientId = null,
+        public ?string $platform = null
     ) {
     }
 
@@ -39,7 +40,8 @@ final class BurrowClientState
             formsProjectSourceId: self::readString($payload['formsProjectSourceId'] ?? null),
             contractsVersion: self::readString($payload['contractsVersion'] ?? null),
             contractMappings: $contractMappings,
-            clientId: self::readString($payload['clientId'] ?? null)
+            clientId: self::readString($payload['clientId'] ?? null),
+            platform: self::readString($payload['platform'] ?? null)
         );
     }
 
@@ -55,6 +57,7 @@ final class BurrowClientState
             'contractsVersion' => $this->contractsVersion,
             'contractMappings' => $this->contractMappings,
             'clientId' => $this->clientId,
+            'platform' => $this->platform,
         ];
     }
 

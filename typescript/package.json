@@ -1,6 +1,6 @@
 {
   "name": "@useburrow/sdk-typescript",
-  "version": "0.9.3",
+  "version": "0.9.5",
   "description": "Burrow TypeScript SDK for plugin integrations.",
   "license": "MIT",
   "type": "module",

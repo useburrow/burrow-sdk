@@ -17,7 +17,9 @@ use Burrow\Sdk\Contracts\LinkedProjectDeepLink;
 use Burrow\Sdk\Contracts\OnboardingDiscoveryRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkRequest;
 use Burrow\Sdk\Contracts\OnboardingLinkResponse;
+use Burrow\Sdk\Events\ApplyClientPlatformDefault;
 use Burrow\Sdk\Events\EventEnvelopeBuilder;
+use Burrow\Sdk\Events\EventSourceResolver;
 use Burrow\Sdk\Events\Exception\EventContractException;
 use Burrow\Sdk\Transport\ApiKeyAuthHeaderProvider;
 use Burrow\Sdk\Transport\ConcurrentHttpTransportInterface;
@@ -56,6 +58,10 @@ final class BurrowClient implements BurrowClientInterface
         $response = $this->post('/api/v1/plugin-onboarding/link', $request->toArray());
         $parsed = OnboardingLinkResponse::fromResponseBody($response->body);
         $this->lastLinkResponse = $parsed;
+
+        if ($request->platform !== null && trim($request->platform) !== '') {
+            $this->state->platform = trim($request->platform);
+        }
 
         if ($parsed->ingestionKey !== null && $parsed->ingestionKey->key !== '') {
             $this->apiKey = $parsed->ingestionKey->key;
@@ -169,8 +175,26 @@ final class BurrowClient implements BurrowClientInterface
         return SdkErrorClassifier::isRetryableSdkError($error);
     }
 
+    /**
+     * @param array<string,mixed> $event
+     *
+     * @return array<string,mixed>
+     */
+    private function normalizeEventForIngest(array $event): array
+    {
+        $merged = ApplyClientPlatformDefault::apply($event, $this->state->platform);
+        if (!ApplyClientPlatformDefault::needsInferredSource($merged)) {
+            return $merged;
+        }
+
+        $merged['source'] = EventSourceResolver::resolveSourceForEvent($merged);
+
+        return $merged;
+    }
+
     public function publishEvent(array $event): HttpResponse
     {
+        $event = $this->normalizeEventForIngest($event);
         $normalizedEvent = EventEnvelopeBuilder::build($event, ['strictNames' => true]);
         $this->assertChannelProjectSourceId($normalizedEvent);
         $this->assertScopedProjectAllowedForEvent($normalizedEvent);
@@ -461,6 +485,7 @@ final class BurrowClient implements BurrowClientInterface
             }
 
             $event['timestamp'] = $normalizedTimestamp;
+            $event = $this->normalizeEventForIngest($event);
             $channel = strtolower(trim((string) ($event['channel'] ?? '')));
             if (!in_array($channel, ['system', 'ecommerce'], true)) {
                 $validEvents[] = $event;
