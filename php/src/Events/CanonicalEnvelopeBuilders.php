@@ -95,8 +95,10 @@ final class CanonicalEnvelopeBuilders
         if (isset($input['subtotal']) && is_numeric($input['subtotal'])) {
             $properties['subtotal'] = $input['subtotal'];
         }
-        if (isset($input['shipping']) && is_numeric($input['shipping'])) {
-            $properties['shippingTotal'] = $input['shipping'];
+        // Canonical key is shippingTotal; shipping is accepted as a deprecated alias.
+        $shippingRaw = $input['shippingTotal'] ?? $input['shipping'] ?? null;
+        if ($shippingRaw !== null && is_numeric($shippingRaw)) {
+            $properties['shippingTotal'] = $shippingRaw;
         }
         $shippingMethodProp = self::readOptionalString($input, 'shippingMethod');
         if ($shippingMethodProp !== null) {

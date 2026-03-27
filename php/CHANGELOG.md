@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-03-27
+
+### Changed
+
+- `buildEcommerceOrderPlacedEvent` now accepts `shippingTotal` as the canonical input key for order-level shipping cost. Legacy `shipping` input key is still accepted as a deprecated backward-compatible alias. Output always uses `properties.shippingTotal`.
+- Migration note: update builder input from `'shipping' => $amount` to `'shippingTotal' => $amount`. The old key continues to work but will be removed in a future major version.
+
 ## [0.9.6] - 2026-03-27
 
 ### Added
 
-- `CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent`: optional numeric `shipping` maps to **`properties.shippingTotal`**, optional string `shippingMethod` to **`properties.shippingMethod`**.
+- `CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent`: optional numeric `shippingTotal` (or deprecated alias `shipping`) maps to **`properties.shippingTotal`**, optional string `shippingMethod` to **`properties.shippingMethod`**.
 
 ### Changed
 

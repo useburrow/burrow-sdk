@@ -21,7 +21,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
         submittedAt: '2026-03-01T00:00:00.000Z',
         tax: 8.25,
         subtotal: 112.25,
-        shipping: 8.25,
+        shippingTotal: 8.25,
         provider: 'woocommerce',
         customerToken: 'cust_tok_1',
         isGuest: 'false',
@@ -46,6 +46,24 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
     expect(event.properties.shippingMethod).toBe('express');
     expect(event.tags.customerToken).toBe('cust_tok_1');
     expect(event.tags.couponCode).toBeUndefined();
+  });
+
+  it('accepts legacy shipping input key as backward-compatible alias for shippingTotal', () => {
+    const event = CanonicalEnvelopeBuilders.buildEcommerceOrderPlacedEvent(
+      {
+        organizationId: 'org_123',
+        orderId: 'ord_legacy',
+        orderTotal: 50,
+        currency: 'USD',
+        itemCount: 1,
+        submittedAt: '2026-03-10T00:00:00.000Z',
+        shipping: 5.99,
+      },
+      routing
+    );
+
+    expect(event.properties.shippingTotal).toBe(5.99);
+    expect(event.properties.shipping).toBeUndefined();
   });
 
   it('omits couponCode tag when not provided', () => {

@@ -88,7 +88,7 @@ final class EventContractHardeningTest extends TestCase
             'submittedAt' => '2026-03-09T00:00:00.000Z',
             'tax' => 10.25,
             'subtotal' => 110.25,
-            'shipping' => 10.25,
+            'shippingTotal' => 10.25,
             'customerToken' => 'cust_tok_1',
             'isGuest' => 'false',
             'orderSequence' => '3',
@@ -112,6 +112,20 @@ final class EventContractHardeningTest extends TestCase
         $this->assertSame('express', $order['properties']['shippingMethod']);
         $this->assertSame('cust_tok_1', $order['tags']['customerToken']);
         $this->assertSame('SPRING25', $order['tags']['couponCode']);
+
+        // Backward compat: legacy "shipping" input key still maps to properties.shippingTotal
+        $legacyOrder = CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent([
+            'organizationId' => 'org_123',
+            'orderId' => '1099',
+            'orderTotal' => 50.00,
+            'currency' => 'USD',
+            'itemCount' => 1,
+            'submittedAt' => '2026-03-10T00:00:00.000Z',
+            'shipping' => 5.99,
+            'tags' => ['provider' => 'woocommerce'],
+        ], $resolver);
+        $this->assertSame(5.99, $legacyOrder['properties']['shippingTotal']);
+        $this->assertArrayNotHasKey('shipping', $legacyOrder['properties']);
 
         $item = CanonicalEnvelopeBuilders::buildEcommerceItemPurchasedEvent([
             'organizationId' => 'org_123',

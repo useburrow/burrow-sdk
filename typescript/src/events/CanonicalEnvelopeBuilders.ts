@@ -34,7 +34,8 @@ export class CanonicalEnvelopeBuilders {
     if (typeof input.subtotal === 'number') {
       properties.subtotal = input.subtotal;
     }
-    const shippingTotal = optionalNumeric(input.shipping);
+    // Canonical key is shippingTotal; shipping is accepted as a deprecated alias.
+    const shippingTotal = optionalNumeric(input.shippingTotal ?? input.shipping);
     if (shippingTotal !== null) {
       properties.shippingTotal = shippingTotal;
     }

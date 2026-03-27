@@ -50,11 +50,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
 - Changed PHP submit/backfill preflight to enforce canonical names and channel project source IDs before HTTP submission.
 
+## [0.9.7] - 2026-03-27
+
+### Changed
+
+- `ecommerce.order.placed` builders (PHP + TypeScript) now accept `shippingTotal` as the canonical input key for order-level shipping cost. The legacy `shipping` input key is still accepted as a backward-compatible alias but is deprecated—new integrations should use `shippingTotal`. Output envelopes always emit `properties.shippingTotal`; `properties.shipping` is never emitted.
+- Migration note for plugin authors: update builder input from `'shipping' => $amount` to `'shippingTotal' => $amount`. The old key continues to work but will be removed in a future major version.
+
 ## [0.9.6] - 2026-03-27
 
 ### Added
 
-- `ecommerce.order.placed` canonical builder (PHP + TypeScript): optional `shipping` input is emitted as **`properties.shippingTotal`**, and optional **`properties.shippingMethod`** when `shippingMethod` is set on the builder input—parity with Burrow activity UIs and the WordPress plugin.
+- `ecommerce.order.placed` canonical builder (PHP + TypeScript): optional `shippingTotal` input (or deprecated alias `shipping`) is emitted as **`properties.shippingTotal`**, and optional **`properties.shippingMethod`** when `shippingMethod` is set on the builder input—parity with Burrow activity UIs and the WordPress plugin.
 
 ### Changed
 
@@ -97,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - PHPUnit test suite passes: `18 tests`, `133 assertions`.
 
-[Unreleased]: https://github.com/useburrow/burrow-sdk/compare/0.9.6...HEAD
+[Unreleased]: https://github.com/useburrow/burrow-sdk/compare/0.9.7...HEAD
+[0.9.7]: https://github.com/useburrow/burrow-sdk/compare/0.9.6...0.9.7
 [0.9.6]: https://github.com/useburrow/burrow-sdk/releases/tag/0.9.6
 [0.9.5]: https://github.com/useburrow/burrow-sdk/releases/tag/0.9.5
 [0.2.0]: https://github.com/useburrow/burrow-sdk/releases/tag/0.2.0
