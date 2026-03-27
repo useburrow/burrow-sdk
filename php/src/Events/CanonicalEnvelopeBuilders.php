@@ -95,6 +95,13 @@ final class CanonicalEnvelopeBuilders
         if (isset($input['subtotal']) && is_numeric($input['subtotal'])) {
             $properties['subtotal'] = $input['subtotal'];
         }
+        if (isset($input['shipping']) && is_numeric($input['shipping'])) {
+            $properties['shippingTotal'] = $input['shipping'];
+        }
+        $shippingMethodProp = self::readOptionalString($input, 'shippingMethod');
+        if ($shippingMethodProp !== null) {
+            $properties['shippingMethod'] = $shippingMethodProp;
+        }
 
         return EventEnvelopeBuilder::build([
             'organizationId' => $input['organizationId'] ?? null,

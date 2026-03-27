@@ -34,6 +34,14 @@ export class CanonicalEnvelopeBuilders {
     if (typeof input.subtotal === 'number') {
       properties.subtotal = input.subtotal;
     }
+    const shippingTotal = optionalNumeric(input.shipping);
+    if (shippingTotal !== null) {
+      properties.shippingTotal = shippingTotal;
+    }
+    const shippingMethodProp = optionalString(input.shippingMethod);
+    if (shippingMethodProp !== null) {
+      properties.shippingMethod = shippingMethodProp;
+    }
 
     return EventEnvelopeBuilder.build({
       organizationId: stringOrEmpty(input.organizationId),
@@ -377,6 +385,22 @@ function optionalString(value: JsonValue | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
+}
+
+/** Numeric scalar for optional totals (matches PHP is_numeric on ingestion payloads). */
+function optionalNumeric(value: JsonValue | undefined): number | null {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return null;
+    }
+    const n = Number(trimmed);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
 }
 
 function stringOrNow(value: JsonValue | undefined): string {

@@ -88,6 +88,7 @@ final class EventContractHardeningTest extends TestCase
             'submittedAt' => '2026-03-09T00:00:00.000Z',
             'tax' => 10.25,
             'subtotal' => 110.25,
+            'shipping' => 10.25,
             'customerToken' => 'cust_tok_1',
             'isGuest' => 'false',
             'orderSequence' => '3',
@@ -107,6 +108,8 @@ final class EventContractHardeningTest extends TestCase
         $this->assertSame('placed', $order['state']);
         $this->assertSame(10.25, $order['properties']['tax']);
         $this->assertSame(110.25, $order['properties']['subtotal']);
+        $this->assertSame(10.25, $order['properties']['shippingTotal']);
+        $this->assertSame('express', $order['properties']['shippingMethod']);
         $this->assertSame('cust_tok_1', $order['tags']['customerToken']);
         $this->assertSame('SPRING25', $order['tags']['couponCode']);
 

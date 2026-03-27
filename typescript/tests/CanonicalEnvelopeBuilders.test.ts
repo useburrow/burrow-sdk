@@ -21,6 +21,7 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
         submittedAt: '2026-03-01T00:00:00.000Z',
         tax: 8.25,
         subtotal: 112.25,
+        shipping: 8.25,
         provider: 'woocommerce',
         customerToken: 'cust_tok_1',
         isGuest: 'false',
@@ -41,6 +42,8 @@ describe('CanonicalEnvelopeBuilders ecommerce helpers', () => {
     expect(event.state).toBe('placed');
     expect(event.properties.tax).toBe(8.25);
     expect(event.properties.subtotal).toBe(112.25);
+    expect(event.properties.shippingTotal).toBe(8.25);
+    expect(event.properties.shippingMethod).toBe('express');
     expect(event.tags.customerToken).toBe('cust_tok_1');
     expect(event.tags.couponCode).toBeUndefined();
   });

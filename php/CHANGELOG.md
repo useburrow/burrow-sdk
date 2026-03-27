@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-03-27
+
+### Added
+
+- `CanonicalEnvelopeBuilders::buildEcommerceOrderPlacedEvent`: optional numeric `shipping` maps to **`properties.shippingTotal`**, optional string `shippingMethod` to **`properties.shippingMethod`**.
+
+### Changed
+
+- `EventContractHardeningTest` covers shipping fields on `ecommerce.order.placed` properties.
+
 ## [0.9.5] - 2026-03-26
 
 ### Fixed
