@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-07-30
+
+### Added
+
+- `OnboardingLinkResponse` now exposes the `capabilities` echo from `POST /api/v1/plugin-onboarding/link` as a `capabilities` array property (default `[]`). The server echoes the **effective** persisted capability values (for example `ecommerce_funnel`), which can differ from what the plugin sent, so consumers should gate features on this echo rather than locally persisted values. Additive and BC-safe: the constructor default keeps existing callers working, and `BurrowClient::link()` / `lastLinkResponse` already return the parsed response unchanged.
+
+Note: version 0.9.8 was skipped so that this release satisfies the `useburrow/sdk-php: ^0.9.9` constraint declared by `useburrow/craft-burrow` 5.4.0.
+
 ## [0.9.7] - 2026-03-27
 
 ### Changed

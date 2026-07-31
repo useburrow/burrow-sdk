@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Burrow\Sdk\Tests;
 
 use Burrow\Sdk\Contracts\FormsContractSubmissionRequest;
+use Burrow\Sdk\Contracts\OnboardingLinkResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -37,6 +38,23 @@ final class ContractFixturesTest extends TestCase
 
         $request = new FormsContractSubmissionRequest($decoded);
         $this->assertSame($decoded, $request->toArray());
+    }
+
+    public function testOnboardingLinkResponseFixtureRoundTripsCapabilities(): void
+    {
+        $fixturePath = dirname(__DIR__, 2) . '/spec/contracts/onboarding-link.response.json';
+        $contents = file_get_contents($fixturePath);
+        self::assertNotFalse($contents);
+
+        $decoded = json_decode($contents, true);
+        self::assertIsArray($decoded);
+
+        $response = OnboardingLinkResponse::fromResponseBody($decoded);
+        $this->assertSame($decoded['routing'], $response->routing);
+        $this->assertNotNull($response->ingestionKey);
+        $this->assertNotNull($response->project);
+        $this->assertSame($decoded['capabilities'], $response->capabilities);
+        $this->assertFalse($response->capabilities['ecommerce_funnel']);
     }
 
     #[DataProvider('canonicalEventFixtureProvider')]
