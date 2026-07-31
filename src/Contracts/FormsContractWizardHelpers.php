@@ -206,6 +206,11 @@ final class FormsContractWizardHelpers
             return $value;
         }
 
+        if (str_starts_with($value, ReservedCanonicalKeys::FEED_PREFIX)
+            && preg_match('/^feed_[a-zA-Z0-9]+$/', $value) === 1) {
+            return $value;
+        }
+
         return self::labelToCanonicalKey($value);
     }
 }

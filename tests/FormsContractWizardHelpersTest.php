@@ -109,7 +109,7 @@ final class FormsContractWizardHelpersTest extends TestCase
 
     public function testLabelToCanonicalKeyMatchesCraftStyle(): void
     {
-        $this->assertSame('serviceInterest', FormsContractWizardHelpers::labelToCanonicalKey('What service are you interested in?'));
+        $this->assertSame('whatServiceAreYouInterestedIn', FormsContractWizardHelpers::labelToCanonicalKey('What service are you interested in?'));
         $this->assertSame('field', FormsContractWizardHelpers::labelToCanonicalKey('   '));
     }
 

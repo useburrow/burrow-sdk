@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OnboardingLinkResponse` now exposes the `capabilities` echo from `POST /api/v1/plugin-onboarding/link` as a `capabilities` array property (default `[]`). The server echoes the **effective** persisted capability values (for example `ecommerce_funnel`), which can differ from what the plugin sent, so consumers should gate features on this echo rather than locally persisted values. Additive and BC-safe: the constructor default keeps existing callers working, and `BurrowClient::link()` / `lastLinkResponse` already return the parsed response unchanged.
 - Shared fixture `spec/contracts/onboarding-link.response.json` covering the capabilities echo, including the falsy `ecommerce_funnel: false` case.
 
+### Fixed
+
+- `FormsContractWizardHelpers::sanitizeCanonicalKey()` no longer rewrites already-`feed_`-prefixed keys (for example `feed_customField` stayed intact on POST but was mangled to `feedCustomField` with a spurious warning in the wizard path).
+
 ## [0.9.9] - 2026-06-19
 
 ### Added
