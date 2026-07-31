@@ -27,11 +27,13 @@ export interface OnboardingLinkResponse {
   routing: JsonObject;
   ingestionKey: OnboardingIngestionKey | null;
   project: OnboardingLinkedProject | null;
+  capabilities: JsonObject;
 }
 
 export function parseOnboardingLinkResponse(body: JsonObject | null): OnboardingLinkResponse {
   const payload = body ?? {};
   const routing = isJsonObject(payload.routing) ? payload.routing : {};
+  const capabilities = isJsonObject(payload.capabilities) ? payload.capabilities : {};
 
   const ingestionKey = parseIngestionKey(payload.ingestionKey);
   const project = parseLinkedProject(payload.project);
@@ -40,6 +42,7 @@ export function parseOnboardingLinkResponse(body: JsonObject | null): Onboarding
     routing,
     ingestionKey,
     project,
+    capabilities,
   };
 }
 

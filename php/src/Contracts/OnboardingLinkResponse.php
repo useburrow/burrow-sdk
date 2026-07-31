@@ -8,11 +8,13 @@ final readonly class OnboardingLinkResponse
 {
     /**
      * @param array<string,mixed> $routing
+     * @param array<string,mixed> $capabilities
      */
     public function __construct(
         public array $routing,
         public ?OnboardingIngestionKey $ingestionKey,
-        public ?OnboardingLinkedProject $project
+        public ?OnboardingLinkedProject $project,
+        public array $capabilities = []
     ) {
     }
 
@@ -23,6 +25,7 @@ final readonly class OnboardingLinkResponse
     {
         $payload = $body ?? [];
         $routing = is_array($payload['routing'] ?? null) ? $payload['routing'] : [];
+        $capabilities = is_array($payload['capabilities'] ?? null) ? $payload['capabilities'] : [];
 
         $ingestionKey = null;
         if (is_array($payload['ingestionKey'] ?? null)) {
@@ -43,7 +46,8 @@ final readonly class OnboardingLinkResponse
         return new self(
             routing: $routing,
             ingestionKey: $ingestionKey,
-            project: $project
+            project: $project,
+            capabilities: $capabilities
         );
     }
 

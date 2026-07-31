@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { EventEnvelopeBuilder } from '../src/events/EventEnvelopeBuilder.js';
+import { parseOnboardingLinkResponse } from '../src/contracts/OnboardingLinkResponse.js';
 import type { JsonObject } from '../src/client/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +41,17 @@ describe('spec/contracts fixture alignment', () => {
     const payload = readJsonFixture('forms-contracts.request.json');
     expect(payload.platform).toBeDefined();
     expect(payload.formsContracts).toBeInstanceOf(Array);
+  });
+
+  it('round-trips onboarding link response fixture capabilities', () => {
+    const payload = readJsonFixture('onboarding-link.response.json');
+    const parsed = parseOnboardingLinkResponse(payload);
+
+    expect(parsed.routing).toEqual(payload.routing);
+    expect(parsed.ingestionKey).not.toBeNull();
+    expect(parsed.project).not.toBeNull();
+    expect(parsed.capabilities).toEqual(payload.capabilities);
+    expect(parsed.capabilities.ecommerce_funnel).toBe(false);
   });
 
   it('validates canonical event fixtures', () => {

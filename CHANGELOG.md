@@ -50,6 +50,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed TypeScript event envelope source resolution to capture provider origin for forms/ecommerce events with explicit override support and platform fallback defaults.
 - Changed PHP submit/backfill preflight to enforce canonical names and channel project source IDs before HTTP submission.
 
+## [0.9.9] - 2026-07-30
+
+### Added
+
+- `OnboardingLinkResponse` (PHP + TypeScript) now exposes the `capabilities` echo from `POST /api/v1/plugin-onboarding/link` — PHP as an `array` property (default `[]`), TypeScript as a `JsonObject` (default `{}`). The server echoes the effective persisted capability values (for example `capabilities.ecommerce_funnel`), so plugin consumers can gate features such as the headless-Shopify funnel collector on the authoritative server echo instead of locally persisted state.
+- Added shared contract fixture `spec/contracts/onboarding-link.response.json` asserted by both SDK test suites, including the falsy `ecommerce_funnel: false` echo.
+
+Note: version 0.9.8 was skipped so this release satisfies the `useburrow/sdk-php: ^0.9.9` constraint declared by `useburrow/craft-burrow` 5.4.0.
+
 ## [0.9.7] - 2026-03-27
 
 ### Changed
