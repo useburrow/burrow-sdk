@@ -18,6 +18,14 @@ final readonly class FormsContractSubmissionRequest
      */
     public function toArray(): array
     {
-        return $this->payload;
+        return FormsContractWizardHelpers::sanitizeFormsContractSubmissionPayloadForPost($this->payload);
+    }
+
+    /**
+     * @return list<array{code:string,message:string,originalKey:string,sanitizedKey:string}>
+     */
+    public function warnings(): array
+    {
+        return FormsContractWizardHelpers::sanitizeFormsContractSubmissionPayload($this->payload)['warnings'];
     }
 }

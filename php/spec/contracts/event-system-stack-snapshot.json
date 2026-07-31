@@ -1,0 +1,40 @@
+{
+  "organizationId": "org_123",
+  "clientId": "cli_123",
+  "projectId": "prj_123",
+  "projectSourceId": "psrc_system_123",
+  "channel": "system",
+  "event": "system.stack.snapshot",
+  "timestamp": "2026-03-09T10:15:30.000Z",
+  "source": "wordpress-plugin",
+  "description": "System stack snapshot captured during scheduled health check",
+  "schemaVersion": "1",
+  "properties": {
+    "siteUrl": "https://example-store.com",
+    "cms": {
+      "name": "wordpress",
+      "version": "6.8.1"
+    },
+    "runtime": {
+      "phpVersion": "8.2.16",
+      "sapi": "fpm-fcgi"
+    },
+    "plugins": [
+      {
+        "name": "woocommerce",
+        "version": "9.1.2",
+        "active": true
+      },
+      {
+        "name": "burrow-plugin",
+        "version": "1.2.0",
+        "active": true
+      }
+    ]
+  },
+  "tags": {
+    "environment": "production",
+    "pluginCount": "2",
+    "hasEcommerce": "true"
+  }
+}

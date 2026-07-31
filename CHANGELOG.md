@@ -57,7 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OnboardingLinkResponse` (PHP + TypeScript) now exposes the `capabilities` echo from `POST /api/v1/plugin-onboarding/link` — PHP as an `array` property (default `[]`), TypeScript as a `JsonObject` (default `{}`). The server echoes the effective persisted capability values (for example `capabilities.ecommerce_funnel`), so plugin consumers can gate features such as the headless-Shopify funnel collector on the authoritative server echo instead of locally persisted state.
 - Added shared contract fixture `spec/contracts/onboarding-link.response.json` asserted by both SDK test suites, including the falsy `ecommerce_funnel: false` echo.
 
-Note: versions 0.9.8 and 0.9.9 are skipped in this repo — 0.9.9 was already tagged on the useburrow/sdk-php mirror without this change, so re-releasing it would collide. 0.9.10 still satisfies the `useburrow/sdk-php: ^0.9.9` constraint declared by `useburrow/craft-burrow` 5.4.0.
+### Fixed
+
+- PHP `FormsContractWizardHelpers::sanitizeCanonicalKey()` no longer rewrites already-`feed_`-prefixed keys (spurious normalization and warning in the wizard path).
+
+Note: PHP versions 0.9.8 (Statamic platform support) and 0.9.9 (reserved canonical key handling) were released directly on the `useburrow/sdk-php` mirror and have been merged back into this repo as part of 0.9.10. See `php/CHANGELOG.md` for their entries. 0.9.10 satisfies the `useburrow/sdk-php: ^0.9.9` constraint declared by `useburrow/craft-burrow` 5.4.0.
 
 ## [0.9.7] - 2026-03-27
 

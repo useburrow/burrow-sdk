@@ -13,6 +13,8 @@ final class EventSourceResolverTest extends TestCase
     {
         $this->assertSame('craft-plugin', EventSourceResolver::getDefaultEventSource('craft'));
         $this->assertSame('craft-plugin', EventSourceResolver::getDefaultEventSource('Craft'));
+        $this->assertSame('statamic-addon', EventSourceResolver::getDefaultEventSource('statamic'));
+        $this->assertSame('statamic-addon', EventSourceResolver::getDefaultEventSource('Statamic'));
         $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource('wordpress'));
         $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource(null));
         $this->assertSame('wordpress-plugin', EventSourceResolver::getDefaultEventSource(''));
@@ -29,6 +31,11 @@ final class EventSourceResolverTest extends TestCase
             'channel' => 'forms',
             'properties' => ['provider' => 'fluent-forms'],
         ]));
+
+        $this->assertSame('statamic-forms', EventSourceResolver::resolveSourceForEvent([
+            'channel' => 'forms',
+            'properties' => ['provider' => 'statamicforms'],
+        ]));
     }
 
     public function testResolvesEcommerceProvidersToCanonicalSlugs(): void
@@ -41,6 +48,11 @@ final class EventSourceResolverTest extends TestCase
         $this->assertSame('craft-commerce', EventSourceResolver::resolveSourceForEvent([
             'channel' => 'ecommerce',
             'properties' => ['provider' => 'craftcommerce'],
+        ]));
+
+        $this->assertSame('cargo', EventSourceResolver::resolveSourceForEvent([
+            'channel' => 'ecommerce',
+            'properties' => ['provider' => 'cargo'],
         ]));
     }
 
@@ -56,6 +68,12 @@ final class EventSourceResolverTest extends TestCase
             'channel' => 'forms',
             'properties' => ['provider' => 'unknown-form-plugin'],
             'platform' => 'craft',
+        ]));
+
+        $this->assertSame('statamic-addon', EventSourceResolver::resolveSourceForEvent([
+            'channel' => 'forms',
+            'properties' => ['provider' => 'unknown-form-plugin'],
+            'platform' => 'statamic',
         ]));
     }
 }

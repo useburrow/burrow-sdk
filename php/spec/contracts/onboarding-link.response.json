@@ -1,0 +1,27 @@
+{
+  "routing": {
+    "projectId": "prj_123",
+    "clientId": "cli_456"
+  },
+  "ingestionKey": {
+    "key": "bk_project_example",
+    "keyPrefix": "bk_project",
+    "scope": "project",
+    "projectId": "prj_123"
+  },
+  "project": {
+    "id": "prj_123",
+    "name": "Any Size Basket",
+    "slug": "anysizebasket-com",
+    "clientId": "cli_456",
+    "clientName": "Three M Tool",
+    "clientSlug": "three-m-tool",
+    "burrowProjectPath": "/clients/three-m-tool/projects/anysizebasket-com",
+    "burrowProjectUrl": "https://app.useburrow.com/clients/three-m-tool/projects/anysizebasket-com"
+  },
+  "capabilities": {
+    "forms": ["formie"],
+    "ecommerce": ["shopify"],
+    "ecommerce_funnel": false
+  }
+}

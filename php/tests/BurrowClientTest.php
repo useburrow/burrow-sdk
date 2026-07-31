@@ -342,6 +342,45 @@ final class BurrowClientTest extends TestCase
 
         $this->assertSame('wordpress-plugin', $transport->lastPayload['source'] ?? null);
     }
+
+    public function testStatamicPlatformFromLinkSetsStatamicAddonSourceOnPublish(): void
+    {
+        $transport = new QueueRecordingTransport([
+            new HttpResponse(200, [
+                'routing' => [],
+                'ingestionKey' => [
+                    'key' => 'ingest_key',
+                    'keyPrefix' => 'burrow',
+                    'scope' => 'organization',
+                    'projectId' => null,
+                ],
+            ], '{}'),
+            new HttpResponse(200, ['ok' => true], '{}'),
+        ]);
+        $client = new BurrowClient('https://api.example.com', 'bootstrap_key', $transport);
+
+        $client->link(new OnboardingLinkRequest(
+            site: ['url' => 'https://statamic.test'],
+            selection: ['organizationId' => 'org_123'],
+            platform: 'statamic'
+        ));
+
+        $this->assertSame('statamic', $client->getState()->platform);
+
+        $client->publishEvent([
+            'organizationId' => 'org_123',
+            'clientId' => 'cli_123',
+            'projectId' => 'prj_123',
+            'projectSourceId' => 'src_sys_123',
+            'channel' => 'system',
+            'event' => 'system.heartbeat.ping',
+            'timestamp' => '2026-03-01T12:00:00.000Z',
+            'properties' => ['responseMs' => 12],
+            'tags' => [],
+        ]);
+
+        $this->assertSame('statamic-addon', $transport->lastPayload['source'] ?? null);
+    }
 }
 
 final class RecordingTransport implements HttpTransportInterface

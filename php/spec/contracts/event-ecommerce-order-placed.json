@@ -1,0 +1,27 @@
+{
+  "organizationId": "org_123",
+  "clientId": "cli_123",
+  "projectId": "prj_123",
+  "projectSourceId": "psrc_ecommerce_123",
+  "channel": "ecommerce",
+  "event": "ecommerce.order.placed",
+  "timestamp": "2026-03-09T11:02:45.000Z",
+  "source": "woocommerce-plugin",
+  "description": "Customer placed a new ecommerce order",
+  "schemaVersion": "1",
+  "properties": {
+    "orderId": "WC-2026-1042",
+    "currency": "USD",
+    "subtotal": 149.99,
+    "discountTotal": 10.0,
+    "shippingTotal": 12.5,
+    "taxTotal": 11.2,
+    "total": 163.69,
+    "itemCount": 3
+  },
+  "tags": {
+    "orderStatus": "processing",
+    "paymentStatus": "paid",
+    "paymentMethod": "stripe"
+  }
+}

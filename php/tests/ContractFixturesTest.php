@@ -29,7 +29,7 @@ final class ContractFixturesTest extends TestCase
 
     public function testFormsContractSubmissionFixtureCanBeSubmitted(): void
     {
-        $fixturePath = dirname(__DIR__, 2) . '/spec/contracts/forms-contracts.request.json';
+        $fixturePath = self::specContractsDir() . '/forms-contracts.request.json';
         $contents = file_get_contents($fixturePath);
         self::assertNotFalse($contents);
 
@@ -42,7 +42,7 @@ final class ContractFixturesTest extends TestCase
 
     public function testOnboardingLinkResponseFixtureRoundTripsCapabilities(): void
     {
-        $fixturePath = dirname(__DIR__, 2) . '/spec/contracts/onboarding-link.response.json';
+        $fixturePath = self::specContractsDir() . '/onboarding-link.response.json';
         $contents = file_get_contents($fixturePath);
         self::assertNotFalse($contents);
 
@@ -57,10 +57,30 @@ final class ContractFixturesTest extends TestCase
         $this->assertFalse($response->capabilities['ecommerce_funnel']);
     }
 
+    public function testReservedCanonicalKeysFixtureSanitizesContractPost(): void
+    {
+        $fixturePath = self::specContractsDir() . '/forms-contract-reserved-canonical-keys.request.json';
+        $contents = file_get_contents($fixturePath);
+        self::assertNotFalse($contents);
+
+        $decoded = json_decode($contents, true);
+        self::assertIsArray($decoded);
+
+        $request = new FormsContractSubmissionRequest($decoded);
+        $payload = $request->toArray();
+        $mappings = $payload['formsContracts'][0]['fieldMappings'];
+
+        $this->assertSame('feed_channel', $mappings[0]['canonicalKey']);
+        $this->assertSame('feed_source', $mappings[1]['canonicalKey']);
+        $this->assertSame('feed_customField', $mappings[2]['canonicalKey']);
+        $this->assertSame('submissionId', $mappings[3]['canonicalKey']);
+        $this->assertNotEmpty($request->warnings());
+    }
+
     #[DataProvider('canonicalEventFixtureProvider')]
     public function testCanonicalEventFixturesHaveRequiredEnvelopeShape(string $fixtureName, string $expectedEvent): void
     {
-        $fixturePath = dirname(__DIR__, 2) . '/spec/contracts/' . $fixtureName;
+        $fixturePath = self::specContractsDir() . '/' . $fixtureName;
         $contents = file_get_contents($fixturePath);
         self::assertNotFalse($contents, sprintf('Missing fixture %s', $fixtureName));
 
@@ -83,10 +103,21 @@ final class ContractFixturesTest extends TestCase
     public static function canonicalEventFixtureProvider(): array
     {
         return [
+            ['event-forms-submission.json', 'forms.submission.received'],
             ['event-system-stack-snapshot.json', 'system.stack.snapshot'],
             ['event-system-heartbeat-ping.json', 'system.heartbeat.ping'],
             ['event-ecommerce-order-placed.json', 'ecommerce.order.placed'],
             ['event-ecommerce-item-purchased.json', 'ecommerce.item.purchased'],
         ];
+    }
+
+    private static function specContractsDir(): string
+    {
+        $standalone = dirname(__DIR__) . '/spec/contracts';
+        if (is_dir($standalone)) {
+            return $standalone;
+        }
+
+        return dirname(__DIR__, 2) . '/spec/contracts';
     }
 }

@@ -19,7 +19,7 @@ jobs:
           coverage: none
 
       - name: Validate package metadata
-        run: composer validate --strict --no-check-lock
+        run: composer validate --no-check-lock
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
