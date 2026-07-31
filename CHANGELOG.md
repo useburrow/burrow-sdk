@@ -12,8 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `OnboardingLinkResponse` now exposes the `capabilities` echo from `POST /api/v1/plugin-onboarding/link` as a `capabilities` array property (default `[]`). The server echoes the **effective** persisted capability values (for example `ecommerce_funnel`), which can differ from what the plugin sent, so consumers should gate features on this echo rather than locally persisted values. Additive and BC-safe: the constructor default keeps existing callers working, and `BurrowClient::link()` / `lastLinkResponse` already return the parsed response unchanged.
+- Shared fixture `spec/contracts/onboarding-link.response.json` covering the capabilities echo, including the falsy `ecommerce_funnel: false` case.
 
-Note: versions 0.9.8 and 0.9.9 are skipped in this repo — 0.9.9 was already tagged on the useburrow/sdk-php mirror without this change, so re-releasing it would collide. 0.9.10 still satisfies the `useburrow/sdk-php: ^0.9.9` constraint declared by `useburrow/craft-burrow` 5.4.0.
+## [0.9.9] - 2026-06-19
+
+### Added
+
+- Reserved canonical key handling with Burrow `feed_` prefix behavior:
+  - `ReservedCanonicalKeys` mirrors Burrow's 17-key reserved list and `sanitizeIncomingDimensionKey()` rules exactly.
+  - `FormsContractWizardHelpers` exposes wizard-only UX helpers (empty-key fallback, label slugification, warnings) separate from Burrow ingest sanitization.
+  - `FormsContractSubmissionRequest` sanitizes `fieldMappings[].canonicalKey` on contract POST using Burrow-parity rules.
+  - `CanonicalEnvelopeBuilders::buildFormsSubmissionReceivedEvent()` sanitizes custom runtime properties/tags.
+  - Ecommerce builders sanitize user-provided input tags before merging derived canonical tags.
+- Shared fixtures under `spec/contracts/` and `spec/fixtures/reserved-canonical-keys.json` for parity tests.
+
+## [0.9.8] - 2026-06-15
+
+### Added
+
+- Statamic platform support for the `useburrow/statamic-burrow` addon:
+  - `EventSourceResolver::getDefaultEventSource('statamic')` returns `statamic-addon`.
+  - Forms provider resolution for `statamic-forms` / `statamicforms`.
+  - Ecommerce provider resolution for `cargo`.
+  - `ApplyClientPlatformDefault` treats `statamic` like `craft` / `wordpress`, clearing mismatched CMS plugin sources (including `statamic-addon` on non-Statamic clients) so ingest infers the correct default source.
 
 ## [0.9.7] - 2026-03-27
 

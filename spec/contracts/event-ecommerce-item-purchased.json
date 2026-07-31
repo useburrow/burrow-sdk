@@ -1,0 +1,29 @@
+{
+  "organizationId": "org_123",
+  "clientId": "cli_123",
+  "projectId": "prj_123",
+  "projectSourceId": "psrc_ecommerce_123",
+  "channel": "ecommerce",
+  "event": "ecommerce.item.purchased",
+  "timestamp": "2026-03-09T11:03:10.000Z",
+  "source": "woocommerce-plugin",
+  "description": "Individual line item purchased in completed checkout flow",
+  "schemaVersion": "1",
+  "properties": {
+    "orderId": "WC-2026-1042",
+    "lineItemId": "li_88374",
+    "productId": "sku_tee_001",
+    "productName": "Burrow Logo Tee",
+    "variant": "Large / Black",
+    "quantity": 1,
+    "unitPrice": 39.99,
+    "lineTotal": 39.99,
+    "currency": "USD"
+  },
+  "tags": {
+    "category": "apparel",
+    "vendor": "Burrow Merch",
+    "productType": "tshirt",
+    "purchaseChannel": "web"
+  }
+}

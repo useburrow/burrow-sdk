@@ -21,6 +21,8 @@ final class EventSourceResolver
         'ninjaforms' => 'ninja-forms',
         'freeform' => 'freeform',
         'formie' => 'formie',
+        'statamic-forms' => 'statamic-forms',
+        'statamicforms' => 'statamic-forms',
     ];
 
     /**
@@ -31,6 +33,7 @@ final class EventSourceResolver
         'woo-commerce' => 'woocommerce',
         'craft-commerce' => 'craft-commerce',
         'craftcommerce' => 'craft-commerce',
+        'cargo' => 'cargo',
     ];
 
     /**
@@ -66,7 +69,11 @@ final class EventSourceResolver
 
         $p = strtolower(trim($platform));
 
-        return $p === 'craft' ? 'craft-plugin' : 'wordpress-plugin';
+        return match ($p) {
+            'craft' => 'craft-plugin',
+            'statamic' => 'statamic-addon',
+            default => 'wordpress-plugin',
+        };
     }
 
     /**

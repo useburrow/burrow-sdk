@@ -4,10 +4,54 @@ declare(strict_types=1);
 
 namespace Burrow\Sdk\Events;
 
+use Burrow\Sdk\Contracts\ReservedCanonicalKeys;
 use Burrow\Sdk\Events\Exception\EventContractException;
 
 final class CanonicalEnvelopeBuilders
 {
+    /**
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    public static function buildFormsSubmissionReceivedEvent(array $input, ChannelRoutingResolver $routing): array
+    {
+        self::assertRequiredStringKeys($input, ['formName', 'submissionId']);
+        if (!isset($input['submittedAt']) && !isset($input['timestamp'])) {
+            throw new EventContractException(
+                errorCode: 'MISSING_REQUIRED_PROPERTY',
+                message: 'submittedAt or timestamp is required for forms.submission.received.'
+            );
+        }
+
+        $resolved = $routing->getRoutingForChannel('forms');
+        $properties = [
+            'formName' => $input['formName'],
+            'submissionId' => $input['submissionId'],
+            'submittedAt' => $input['submittedAt'] ?? $input['timestamp'],
+        ];
+        $tags = [];
+
+        if (isset($input['formId']) && is_string($input['formId']) && trim($input['formId']) !== '') {
+            $tags['formId'] = trim($input['formId']);
+        }
+
+        $properties = self::mergeSanitizedRuntimeMap($properties, $input['properties'] ?? null);
+        $tags = self::mergeSanitizedRuntimeMap($tags, $input['tags'] ?? null);
+
+        return EventEnvelopeBuilder::build([
+            'organizationId' => $input['organizationId'] ?? null,
+            'clientId' => $resolved['clientId'] ?? $input['clientId'] ?? null,
+            'projectId' => $resolved['projectId'],
+            'projectSourceId' => $resolved['projectSourceId'],
+            'channel' => 'forms',
+            'event' => 'forms.submission.received',
+            'timestamp' => $input['timestamp'] ?? $input['submittedAt'],
+            'description' => $input['description'] ?? null,
+            'properties' => $properties,
+            'tags' => $tags,
+        ], ['strictNames' => true]);
+    }
+
     /**
      * @param array<string,mixed> $input
      * @return array<string,mixed>
@@ -563,7 +607,11 @@ final class CanonicalEnvelopeBuilders
         if ($includeInputTags && is_array($input['tags'] ?? null)) {
             foreach ($input['tags'] as $key => $value) {
                 if (is_string($key) && is_string($value) && trim($value) !== '') {
-                    $tags[$key] = trim($value);
+                    $sanitizedKey = ReservedCanonicalKeys::sanitizeIncomingDimensionKey($key);
+                    if ($sanitizedKey === '') {
+                        continue;
+                    }
+                    $tags[$sanitizedKey] = trim($value);
                 }
             }
         }
@@ -594,5 +642,26 @@ final class CanonicalEnvelopeBuilders
         }
         $trimmed = trim($value);
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @param array<string,mixed> $base
+     * @param mixed $custom
+     * @return array<string,mixed>
+     */
+    private static function mergeSanitizedRuntimeMap(array $base, mixed $custom): array
+    {
+        if (!is_array($custom)) {
+            return $base;
+        }
+
+        $sanitized = ReservedCanonicalKeys::sanitizePropertyAndTagKeys($custom);
+        foreach ($sanitized as $key => $value) {
+            if (!array_key_exists($key, $base)) {
+                $base[$key] = $value;
+            }
+        }
+
+        return $base;
     }
 }

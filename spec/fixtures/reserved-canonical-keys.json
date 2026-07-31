@@ -1,0 +1,9 @@
+{
+  "cases": [
+    { "input": "serviceInterest", "output": "serviceInterest" },
+    { "input": "source", "output": "feed_source" },
+    { "input": "timestamp", "output": "feed_timestamp" },
+    { "input": "feed_source", "output": "feed_source" },
+    { "input": "channel", "output": "feed_channel" }
+  ]
+}

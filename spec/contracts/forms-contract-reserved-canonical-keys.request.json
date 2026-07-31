@@ -1,0 +1,56 @@
+{
+  "platform": "craft",
+  "pluginVersion": "1.0.0",
+  "site": {
+    "url": "https://example.com",
+    "cmsVersion": "5.6.0"
+  },
+  "routing": {
+    "clientId": "cli_123",
+    "projectId": "prj_123",
+    "projectSourceId": "psrc_forms_123"
+  },
+  "formsContracts": [
+    {
+      "provider": "freeform",
+      "externalFormId": "ff_42",
+      "formHandle": "contactUs",
+      "formName": "Contact Us",
+      "enabled": true,
+      "fieldMappings": [
+        {
+          "externalFieldId": "channel",
+          "sourceLabel": "Preferred Channel",
+          "canonicalKey": "channel",
+          "target": "tags",
+          "dataType": "string",
+          "reportable": true
+        },
+        {
+          "externalFieldId": "referral_source",
+          "sourceLabel": "Referral Source",
+          "canonicalKey": "source",
+          "target": "tags",
+          "dataType": "string",
+          "reportable": true
+        },
+        {
+          "externalFieldId": "already_prefixed",
+          "sourceLabel": "Already Prefixed",
+          "canonicalKey": "feed_customField",
+          "target": "tags",
+          "dataType": "string",
+          "reportable": true
+        },
+        {
+          "externalFieldId": "submission_id_copy",
+          "sourceLabel": "Submission ID Copy",
+          "canonicalKey": "submissionId",
+          "target": "properties",
+          "dataType": "string",
+          "reportable": false
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,18 @@ namespace Burrow\Sdk\Events;
 final class ApplyClientPlatformDefault
 {
     /**
+     * Sources that belong to a different CMS platform and should be cleared
+     * so ingest can infer the correct default for the linked client platform.
+     *
+     * @var array<string, list<string>>
+     */
+    private const FOREIGN_SOURCES_BY_PLATFORM = [
+        'craft' => ['wordpress-plugin', 'statamic-addon'],
+        'wordpress' => ['craft-plugin', 'statamic-addon'],
+        'statamic' => ['wordpress-plugin', 'craft-plugin'],
+    ];
+
+    /**
      * @param array<string,mixed> $event
      *
      * @return array<string,mixed>
@@ -22,20 +34,16 @@ final class ApplyClientPlatformDefault
         }
 
         $norm = strtolower(trim($clientPlatform));
-        if ($norm !== 'craft' && $norm !== 'wordpress') {
+        $foreignSources = self::FOREIGN_SOURCES_BY_PLATFORM[$norm] ?? null;
+        if ($foreignSources === null) {
             return $event;
         }
 
         $out = $event;
         $sourceStr = isset($out['source']) && is_string($out['source']) ? trim($out['source']) : '';
 
-        if ($norm === 'craft' && ($sourceStr === '' || $sourceStr === 'wordpress-plugin')) {
+        if ($sourceStr === '' || in_array($sourceStr, $foreignSources, true)) {
             unset($out['source']);
-            $out['platform'] = 'craft';
-        } elseif ($norm === 'wordpress' && ($sourceStr === '' || $sourceStr === 'craft-plugin')) {
-            unset($out['source']);
-            $out['platform'] = 'wordpress';
-        } elseif ($sourceStr === '') {
             $out['platform'] = $norm;
         }
 

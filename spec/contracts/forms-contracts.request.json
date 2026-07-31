@@ -1,0 +1,42 @@
+{
+  "platform": "craft",
+  "pluginVersion": "1.0.0",
+  "site": {
+    "url": "https://example.com",
+    "cmsVersion": "5.6.0"
+  },
+  "routing": {
+    "clientId": "cli_123",
+    "projectId": "prj_123",
+    "projectSourceId": "psrc_forms_123"
+  },
+  "capabilities": {
+    "forms": [
+      "freeform"
+    ],
+    "ecommerce": [
+      "craft-commerce"
+    ],
+    "system": true
+  },
+  "formsContracts": [
+    {
+      "provider": "freeform",
+      "externalFormId": "42",
+      "formHandle": "contactUs",
+      "formName": "Contact Us",
+      "enabled": true,
+      "fieldMappings": [
+        {
+          "externalFieldId": "service_interest",
+          "sourceLabel": "What service are you interested in?",
+          "canonicalKey": "serviceInterest",
+          "target": "tags",
+          "dataType": "string",
+          "reportable": true,
+          "displayLabelOverride": "Service Interest"
+        }
+      ]
+    }
+  ]
+}
